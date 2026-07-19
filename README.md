@@ -32,6 +32,7 @@ cp .env.example .env
 python3 -c "import hashlib,secrets;t=secrets.token_urlsafe(32);print('token:',t,'sha256:',hashlib.sha256(t.encode()).hexdigest())"
 # впишите admin:<hash>,operator:<hash> в API_KEYS
 
+# если pull падает с "not found"/429 (лимит Docker Hub) — сперва: bash pull-images.sh
 docker compose -f docker-compose.lab.yml up -d --build
 docker compose -f docker-compose.lab.yml exec ollama ollama pull qwen2.5:7b   # или 3b
 docker compose -f docker-compose.webui.yml up -d
