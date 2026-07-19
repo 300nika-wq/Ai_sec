@@ -313,6 +313,23 @@
     </details>
 
     <h3 style="margin:18px 0 0;font-size:13.5px">Тренировочные мишени</h3>
+
+    <details id="targetEditor" class="card" style="margin-top:10px">
+      <summary style="cursor:pointer;color:var(--accent);font-weight:600">Изменить адрес мишени (распределённая установка, нужен admin-токен)</summary>
+      <p class="kv" style="margin:10px 0">Если мишень поднята на другом хосте — укажите её адрес. Новый host по умолчанию добавляется в scope, иначе скан по нему не пройдёт.</p>
+      <div class="field"><label>Мишень</label><select id="teName" onchange="fillTarget()"></select></div>
+      <div class="grid2">
+        <div class="field"><label>Host / IP (для сканера)</label><input id="teHost" placeholder="192.168.1.50 или juiceshop"></div>
+        <div class="field"><label>Port (внутренний)</label><input id="tePort" type="number" placeholder="3000"></div>
+      </div>
+      <div class="field"><label>URL «Открыть» (для браузера)</label><input id="teUrl" placeholder="http://192.168.1.50:3000"></div>
+      <div class="btn-row">
+        <label class="row-check"><input type="checkbox" id="teScope" checked> добавить host в scope</label>
+        <button onclick="saveTarget()">Сохранить адрес</button>
+        <span class="kv">В памяти; перезапуск pentest вернёт к targets.lab.yml.</span>
+      </div>
+    </details>
+
     <div id="targetsBox"></div>
 
     <h3 style="margin:18px 0 0;font-size:13.5px">Журнал действий</h3>
@@ -638,7 +655,35 @@ async function saveLlm(){
   }catch(e){ st.className="status err"; st.textContent=e.message; }
 }
 
+let LAB_TARGETS=[];
+function fillTarget(){
+  const t=LAB_TARGETS.find(x=>x.name===$("teName").value);
+  if(!t) return;
+  $("teHost").value=t.host||""; $("tePort").value=t.port||""; $("teUrl").value=t.url||"";
+}
+async function saveTarget(){
+  const st=$("labStatus"); st.className="status busy"; st.textContent="Сохраняю адрес мишени…";
+  const name=$("teName").value;
+  const body={ host:$("teHost").value.trim(), url:$("teUrl").value.trim(),
+               add_to_scope:$("teScope").checked };
+  const port=parseInt($("tePort").value); if(!isNaN(port)) body.port=port;
+  try{
+    const r=await api(cfg.pent||$("pentUrl").value, "/v1/lab/targets/"+encodeURIComponent(name), {method:"PUT", body:JSON.stringify(body)});
+    st.className="status"; st.textContent="Адрес мишени обновлён. "+(r.note||"");
+    $("targetEditor").open=false; loadLab();
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
 function renderTargets(list){
+  LAB_TARGETS=list;
+  // наполняем выпадашку редактора адреса (не трогаем, пока редактор открыт)
+  const ed=$("targetEditor"), sel=$("teName");
+  if(sel && (!ed || !ed.open)){
+    const prev=sel.value;
+    sel.innerHTML=list.map(t=>`<option value="${esc(t.name)}">${esc(t.name)} (${esc(t.host)}:${t.port})</option>`).join("");
+    if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+    fillTarget();
+  }
   if(!list.length){ $("targetsBox").innerHTML=`<div class="kv" style="margin-top:8px">Мишени не заданы.</div>`; return; }
   $("targetsBox").innerHTML=list.map((t,i)=>{
     const scopeMark = t.in_scope ? "" : `<span class="badge sev-high" title="вне scope">вне scope</span>`;

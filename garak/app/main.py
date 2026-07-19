@@ -46,6 +46,9 @@ GARAK_BIN = shutil.which("garak") or "garak"
 
 ALLOWED_HOSTS = {h.strip().lower() for h in os.environ.get(
     "GARAK_ALLOWED_HOSTS", "vulnllm,ragapp,ollama,127.0.0.1,localhost").split(",") if h.strip()}
+# Распределённая установка: если мишени на произвольных хостах — включите
+# GARAK_ALLOW_ANY_HOST=true (тогда allowlist не применяется, но http(s) остаётся).
+ALLOW_ANY_HOST = os.environ.get("GARAK_ALLOW_ANY_HOST", "false").lower() == "true"
 
 _PROBE_RE = re.compile(r"^[A-Za-z0-9_.]{1,64}$")
 
@@ -100,9 +103,10 @@ def _check_uri(uri: str) -> str:
     p = urlparse(uri or "")
     if p.scheme not in ("http", "https") or not p.hostname:
         raise HTTPException(status_code=400, detail="uri должен быть http(s)://host…")
-    if p.hostname.lower() not in ALLOWED_HOSTS:
+    if not ALLOW_ANY_HOST and p.hostname.lower() not in ALLOWED_HOSTS:
         raise HTTPException(status_code=403,
-                            detail=f"host '{p.hostname}' не в GARAK_ALLOWED_HOSTS")
+                            detail=f"host '{p.hostname}' не в GARAK_ALLOWED_HOSTS "
+                                   f"(для распределёнки: GARAK_ALLOW_ANY_HOST=true)")
     return uri
 
 
@@ -203,7 +207,7 @@ async def index():
 @app.get("/v1/meta")
 async def meta(role: str = Depends(authenticate)):
     return {"presets": PRESETS, "probes": CURATED_PROBES,
-            "allowed_hosts": sorted(ALLOWED_HOSTS),
+            "allowed_hosts": sorted(ALLOWED_HOSTS), "allow_any_host": ALLOW_ANY_HOST,
             "garak_installed": shutil.which("garak") is not None}
 
 

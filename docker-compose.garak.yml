@@ -17,6 +17,8 @@ services:
       # Куда garak вообще разрешено стучаться (защита от указания произвольного URL
       # из браузера). По умолчанию — только мишени стенда и локальный Ollama.
       GARAK_ALLOWED_HOSTS: ${GARAK_ALLOWED_HOSTS:-vulnllm,ragapp,ollama,127.0.0.1,localhost}
+      # Распределённая установка: true — разрешить мишени на любом хосте (http(s)).
+      GARAK_ALLOW_ANY_HOST: ${GARAK_ALLOW_ANY_HOST:-false}
     volumes:
       - "garak_data:/data"
     security_opt: [ "no-new-privileges:true" ]
