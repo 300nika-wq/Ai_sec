@@ -1,0 +1,45 @@
+/* ============================================================
+   MGTS Spacing, Radius & Shadow tokens — Granat 2
+   ============================================================ */
+
+:root {
+  /* ---- Spacing scale (4px base grid) ---- */
+  --space-2:  2px;
+  --space-4:  4px;
+  --space-6:  6px;
+  --space-8:  8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---- Radii (Granat token grid: 8 / 12 / 32 / 80) ---- */
+  --radius-s:  8px;   /* tags, checkboxes, small elements */
+  --radius-m:  12px;  /* cards, inputs, buttons */
+  --radius-l:  32px;  /* large cards, banners */
+  --radius-xl: 80px;  /* pills, avatars */
+  --radius-round: 50%;
+
+  /* ---- Elevation / shadows ---- */
+  --shadow-low:    0 2px 8px rgba(29, 32, 35, 0.08),
+                   0 0 1px rgba(29, 32, 35, 0.12);
+  --shadow-middle: 0 4px 16px rgba(29, 32, 35, 0.12),
+                   0 0 1px rgba(29, 32, 35, 0.12);
+  --shadow-high:   0 12px 40px rgba(29, 32, 35, 0.18),
+                   0 0 1px rgba(29, 32, 35, 0.12);
+
+  /* ---- Control heights (button / input sizing) ---- */
+  --control-xs: 28px;
+  --control-s:  36px;
+  --control-m:  44px;  /* default */
+  --control-l:  52px;
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.4, 0.0, 0.2, 1); /* @kind other */
+  --duration-fast: 120ms; /* @kind other */
+  --duration-base: 200ms; /* @kind other */
+}

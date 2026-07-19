@@ -1,0 +1,17 @@
+# ЛАБОРАТОРНЫЙ scope. Все мишени — намеренно уязвимые приложения, поднятые ВАМИ
+# в изолированной docker-сети => сканировать законно. Полный набор инструментов.
+engagement_id: "LAB-TRAINING"
+max_intensity: "full"
+allowed_cidrs: []
+allowed_hosts:
+  - "juiceshop"
+  - "dvwa"
+  - "webgoat"
+  - "vampi"
+  - "metasploitable"
+  - "vulnllm"
+  - "ragapp"
+  - "dvga"
+  - "misconfig"
+  - "mcppoison"
+excluded: []

@@ -1,0 +1,114 @@
+- name: "OWASP Juice Shop"
+  host: juiceshop
+  port: 3000
+  url: http://127.0.0.1:3000
+  kind: web
+  description: "Современное уязвимое веб-приложение (SPA + REST). Широкий спектр OWASP Top-10."
+  objectives:
+    - "Снять fingerprint и заголовки (whatweb, http_headers)"
+    - "Найти скрытые пути и API (content_discovery)"
+    - "Прогнать шаблоны мисконфигов (nuclei_scan)"
+  hint: "Начните с http_headers и whatweb для стека, затем content_discovery по /rest и /api. Juice Shop отдаёт много подсказок в исходниках SPA."
+
+- name: "DVWA"
+  host: dvwa
+  port: 80
+  url: http://127.0.0.1:3001
+  kind: web
+  description: "Damn Vulnerable Web App. Классика: SQLi, XSS, CSRF, file upload. Есть уровни сложности."
+  objectives:
+    - "Определить веб-стек (whatweb)"
+    - "Проверить точку с параметром на SQLi (sqlmap)"
+  hint: "Выставьте DVWA Security = Low в настройках приложения. Для sqlmap нужна аутентифицированная точка с параметром, напр. /vulnerabilities/sqli/?id=1 (потребуется cookie сессии)."
+
+- name: "OWASP WebGoat"
+  host: webgoat
+  port: 8080
+  url: http://127.0.0.1:3002/WebGoat
+  kind: web
+  description: "Обучающие уроки OWASP с пошаговыми заданиями по каждому классу уязвимостей."
+  objectives:
+    - "Снять заголовки и версии (http_headers)"
+    - "Пройти уроки через веб-интерфейс приложения"
+  hint: "WebGoat интерактивен: сканеры дают только поверхность, основная ценность — встроенные уроки. Откройте /WebGoat и идите по разделам."
+
+- name: "VAmPI (vulnerable API)"
+  host: vampi
+  port: 5000
+  url: http://127.0.0.1:3003
+  kind: api
+  description: "Намеренно уязвимый REST API. BOLA, broken auth, mass assignment — практика по API Top-10."
+  objectives:
+    - "Перечислить эндпоинты (content_discovery, http_headers)"
+    - "Проверить объектную авторизацию (BOLA) между пользователями"
+  hint: "Запустите VAmPI в vulnerable-режиме. Ищите /users/v1 и /books/v1; классика — доступ к чужому объекту по id без проверки владельца (BOLA)."
+
+- name: "Metasploitable2"
+  host: metasploitable
+  port: 80
+  url: http://127.0.0.1:3004
+  kind: network
+  description: "Сетевая мишень: FTP, SSH, telnet, SMB, SNMP, MySQL, Postgres, веб. Практика по сервисам, не только веб."
+  objectives:
+    - "Снять карту сервисов и версий (enum_services)"
+    - "Энумерировать SMB и SNMP (nmap_smb, smb_shares, snmp_check)"
+    - "Проверить vuln-скриптами (nmap_vuln)"
+  hint: "Начните с enum_services по 1-1000: увидите устаревшие vsftpd/Samba/UnrealIRCd. Анонимный smb_shares и snmp_check с community public почти всегда отдают данные."
+
+- name: "Vulnerable LLM App"
+  host: vulnllm
+  port: 8000
+  url: http://127.0.0.1:3005
+  kind: ai/llm
+  description: "Намеренно уязвимый бот поддержки. Тренировка на prompt injection, утечке системного промпта и excessive agency (OWASP LLM Top 10)."
+  objectives:
+    - "Заставить бота раскрыть системный промпт (llm_probe: system_leak)"
+    - "Извлечь секрет/пароль (llm_probe: secret_leak)"
+    - "Триггернуть админ-действие через инъекцию (llm_probe: tool_misuse)"
+  hint: "Прямые просьбы бот игнорирует. Пробуйте override инструкций ('ignore previous...'), ролевую подмену и просьбу повторить текст выше. Для tool_misuse нужно заставить модель вывести токен EXECUTE_ADMIN — приложение слепо ему доверяет."
+
+- name: "Vulnerable RAG App"
+  host: ragapp
+  port: 8000
+  url: http://127.0.0.1:3006
+  kind: ai/rag
+  description: "RAG-бот с открытым на запись корпусом. Тренировка на indirect prompt injection через отравление документов (LLM08 + LLM01)."
+  objectives:
+    - "Поместить отравленный документ в базу знаний (rag_poison)"
+    - "Триггернуть инъекцию безобидным запросом (rag_query)"
+    - "Наблюдать утечку секрета / EXECUTE_ADMIN из retrieved-контента"
+  hint: "Ключ в том, что retrieved-документ кладётся в промпт как доверенный. Отравите документ на популярную тему (напр. 'Возврат'), чтобы обычный вопрос про возврат его вытянул. Инструкция внутри документа переопределяет поведение — это и есть indirect injection."
+
+- name: "DVGA (GraphQL)"
+  host: dvga
+  port: 5013
+  url: http://127.0.0.1:3007
+  kind: api/graphql
+  description: "Damn Vulnerable GraphQL App. Introspection, batching-атаки, инъекции в резолверы."
+  objectives:
+    - "Снять схему через introspection (graphql_introspection)"
+    - "Изучить мутации и резолверы на инъекции"
+  hint: "Начните с graphql_introspection — если интроспекция включена, увидите всю схему (типы, поля, мутации). Это стартовая точка для GraphQL-пентеста."
+
+- name: "Cloud/Secrets Misconfig"
+  host: misconfig
+  port: 8000
+  url: http://127.0.0.1:3008
+  kind: cloud
+  description: "Утечка секретов через открытые пути (.env, .git, debug) и SSRF-к-метаданным облака (IMDS). Данные фейковые."
+  objectives:
+    - "Найти открытые секреты (secrets_scan)"
+    - "Достучаться до IMDS и вытащить временные ключи"
+    - "Обнаружить открытый .git"
+  hint: "secrets_scan разом проверит /.env, /.git/config, /debug и путь IMDS. Обратите внимание на /latest/meta-data/iam/security-credentials/ — это симуляция SSRF-к-метаданным, классика облачных атак."
+
+- name: "Poisoned MCP Server"
+  host: mcppoison
+  port: 8000
+  url: http://127.0.0.1:3009
+  kind: ai/mcp
+  description: "MCP-сервер с отравленным инструментом. Практика по agentic supply chain / tool poisoning (OWASP LLM03)."
+  objectives:
+    - "Получить список инструментов (mcp_scan)"
+    - "Найти инструмент с инъекцией в описании (tool poisoning)"
+  hint: "mcp_scan заберёт /tools. Внимательно читайте поле description каждого инструмента — в одном спрятана скрытая инструкция (SYSTEM-комментарий), которую наивный агент выполнит при загрузке метаданных. Это и есть tool poisoning."

@@ -1,0 +1,38 @@
+/* ============================================================
+   MGTS Typography tokens — Granat 2 type system
+   Families (keep the space in names):
+     'MTS Wide'    — headings H1–H2, accent labels
+     'MTS Compact' — primary UI text
+     'MTS Sans'    — long-form body / descriptions
+     'MTS Text'    — small helper text
+   ============================================================ */
+
+:root {
+  /* Families */
+  --font-wide:    'MTS Wide', 'Segoe UI', system-ui, sans-serif;
+  --font-compact: 'MTS Compact', 'Segoe UI', system-ui, sans-serif;
+  --font-sans:    'MTS Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-text:    'MTS Text', 'Segoe UI', system-ui, sans-serif;
+
+  /* Weights */
+  --fw-regular: 400; /* @kind font */
+  --fw-medium:  500; /* @kind font */
+  --fw-bold:    700; /* @kind font */
+
+  /* --- Type scale (role : size / line-height) --- */
+  /* Headline — MTS Wide */
+  --type-h1-size: 32px;  --type-h1-lh: 36px;  --type-h1-weight: 700;
+  --type-h2-size: 24px;  --type-h2-lh: 28px;  --type-h2-weight: 700;
+
+  /* Title — MTS Compact */
+  --type-h3-size: 20px;  --type-h3-lh: 24px;  --type-h3-weight: 700;
+  --type-h4-size: 17px;  --type-h4-lh: 24px;  --type-h4-weight: 500;
+
+  /* Body — MTS Compact */
+  --type-body-lg-size: 17px;  --type-body-lg-lh: 24px;
+  --type-body-size:    15px;  --type-body-lh:    20px;
+  --type-body-sm-size: 14px;  --type-body-sm-lh: 20px;
+
+  /* Caption — MTS Compact / Text */
+  --type-caption-size: 12px;  --type-caption-lh: 16px;
+}

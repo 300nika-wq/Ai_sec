@@ -1,0 +1,20 @@
+# секреты и локальная конфигурация
+.env
+*.key
+*.pem
+
+# аудит-журналы и данные
+data/
+*.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# редакторы / ОС
+.DS_Store
+.idea/
+.vscode/
+# engagement.real.yml   # раскомментируйте, если храните боевой scope локально

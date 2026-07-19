@@ -1,0 +1,9 @@
+name: ai-sec-webui
+services:
+  webui:
+    image: nginx:alpine
+    volumes:
+      - "./webui:/usr/share/nginx/html:ro"
+    ports:
+      - "127.0.0.1:8080:80"     # интерфейс только на localhost
+    restart: unless-stopped

@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>МГТС · AI-SEC Console</title>
+<link rel="stylesheet" href="mgts/styles.css">
+<style>
+  /* Токены МГТС встроены инлайн, чтобы интерфейс отображался корректно даже без
+     загрузки внешнего mgts/styles.css. Внешний файл подключает шрифты MTS и
+     остаётся источником истины при отдаче через сервер. Светлая тема, бренд #008ae0. */
+  :root{
+    --mgts-blue-500:#008ae0; --mgts-blue-600:#0072bd; --mgts-blue-700:#005c99; --mgts-blue-50:#e6f4fc;
+    --granat-green:#26cd58; --granat-yellow:#fac031; --granat-orange:#f95721;
+    --color-background-primary:#ffffff; --color-background-secondary:#f2f3f7;
+    --color-background-lower:#e9ecf0; --color-background-inverted:#1d2023;
+    --color-text-primary:#1d2023; --color-text-secondary:#626c77; --color-text-tertiary:#969fa8;
+    --color-text-inverted:#fafafa;
+    --color-brand:#008ae0; --color-brand-hover:#0072bd; --color-brand-active:#005c99;
+    --color-brand-subtle:#e6f4fc;
+    --color-line:#e2e5eb; --color-control-stroke:#969fa8; --color-control-stroke-hover:#626c77;
+    --color-accent-brand-bg:#e6f4fc; --color-accent-positive-bg:#e3f9ea;
+    --color-accent-warning-bg:#fff4d6; --color-accent-negative-bg:#ffe5dc;
+    --font-wide:'MTS Wide','Segoe UI',system-ui,sans-serif;
+    --font-compact:'MTS Compact','Segoe UI',system-ui,sans-serif;
+    --radius-s:8px; --radius-m:12px; --shadow-low:0 2px 8px rgba(29,32,35,.08),0 0 1px rgba(29,32,35,.12);
+    --duration-fast:120ms; --ease-standard:cubic-bezier(.4,0,.2,1);
+  }
+  /* Внутренние переменные консоли -> семантические токены МГТС. Severity — без MTS-красного. */
+  :root{
+    --ink:var(--color-background-lower); --panel:var(--color-background-primary);
+    --panel-2:var(--color-background-secondary); --line:var(--color-line);
+    --text:var(--color-text-primary); --muted:var(--color-text-secondary);
+    --accent:var(--color-brand); --accent-dim:var(--color-brand);
+    --focus:var(--color-brand-hover);
+    --sev-info:var(--mgts-blue-500); --sev-low:var(--granat-green); --sev-medium:var(--granat-yellow);
+    --sev-high:var(--granat-orange); --sev-critical:#c0371a;
+    --ok:var(--granat-green); --bad:var(--granat-orange);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:var(--font-compact);
+    --radius-card:var(--radius-m);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--text);font-family:var(--sans);
+       font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+
+  header{display:flex;align-items:baseline;gap:14px;padding:26px 0 18px;
+         border-bottom:1px solid var(--line)}
+  header .mark{font-family:var(--font-wide);font-weight:700;letter-spacing:.01em;
+               font-size:20px;color:var(--accent)}
+  header .mark b{color:var(--text)}
+  header .sub{color:var(--muted);font-size:12px;font-family:var(--mono)}
+  header .spacer{flex:1}
+  .env-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);
+           display:inline-block;margin-right:6px}
+  .env-dot.up{background:var(--ok)} .env-dot.down{background:var(--bad)}
+
+  /* settings bar */
+  .settings{display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:10px;
+            padding:16px;margin-top:16px;background:var(--panel);
+            border:1px solid var(--line);border-radius:var(--radius-card);box-shadow:var(--shadow-low)}
+  .settings label{display:block;font-size:11px;color:var(--muted);
+                  text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+  input,select,textarea{width:100%;background:var(--ink);color:var(--text);
+     border:1px solid var(--line);border-radius:7px;padding:9px 11px;
+     font-family:var(--sans);font-size:13px}
+  textarea{font-family:var(--mono);font-size:12.5px;resize:vertical;min-height:110px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--focus);
+     box-shadow:0 0 0 3px var(--color-brand-subtle)}
+
+  button{font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;
+     border:1px solid var(--color-brand);background:var(--color-brand);color:#fff;
+     border-radius:var(--radius-s);padding:9px 16px;transition:background var(--duration-fast) var(--ease-standard)}
+  button:hover{background:var(--color-brand-hover);border-color:var(--color-brand-hover)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--text);border-color:var(--color-control-stroke)}
+  button.ghost:hover{background:var(--color-background-secondary);border-color:var(--color-control-stroke-hover)}
+  button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+  /* tabs */
+  nav.tabs{display:flex;gap:2px;margin:22px 0 0}
+  nav.tabs button{background:transparent;border:none;border-bottom:2px solid transparent;
+     color:var(--muted);border-radius:0;padding:10px 16px;font-weight:600}
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+         padding:20px;margin-top:16px}
+  .panel h2{margin:0 0 4px;font-size:15px}
+  .panel .hint{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:11px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+  .row-check{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+  .row-check input{width:auto}
+
+  /* output */
+  .out{margin-top:18px}
+  .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;
+     padding:3px 9px;border-radius:999px;letter-spacing:.03em}
+  .sev-info{background:var(--color-accent-brand-bg);color:var(--sev-info);border:1px solid var(--sev-info)}
+  .sev-low{background:var(--color-accent-positive-bg);color:var(--sev-low);border:1px solid var(--sev-low)}
+  .sev-medium{background:var(--color-accent-warning-bg);color:var(--sev-medium);border:1px solid var(--sev-medium)}
+  .sev-high{background:var(--color-accent-negative-bg);color:var(--sev-high);border:1px solid var(--sev-high)}
+  .sev-critical{background:var(--color-accent-negative-bg);color:var(--sev-critical);border:1px solid var(--sev-critical)}
+  .chip{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--muted);
+     border:1px solid var(--line);border-radius:5px;padding:2px 7px;margin:2px 4px 2px 0}
+  .card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+        padding:14px 16px;margin-top:12px}
+  .card h3{margin:0 0 6px;font-size:13.5px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .card ul{margin:6px 0 0;padding-left:18px} .card li{margin:2px 0}
+  .kv{color:var(--muted);font-size:12px} .kv b{color:var(--text);font-weight:600}
+  pre{background:var(--color-background-inverted);border:1px solid var(--line);border-radius:var(--radius-s);
+      padding:12px 14px;overflow:auto;font-family:var(--mono);font-size:12px;
+      color:var(--color-text-inverted);max-height:340px;margin:8px 0 0}
+  .scope-ok{color:var(--ok)} .scope-bad{color:var(--bad)}
+  .status{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:10px;min-height:16px}
+  .status.err{color:var(--bad)} .status.busy{color:var(--accent)}
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .step-meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin:2px 0}
+  /* lab dashboard */
+  .tgt{display:flex;align-items:center;gap:12px;padding:11px 14px;margin-top:10px;
+       background:var(--panel-2);border:1px solid var(--line);border-radius:9px}
+  .tgt .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+  .tgt .dot.up{background:var(--ok)} .tgt .dot.down{background:var(--bad)}
+  .tgt .meta{flex:1;min-width:0}
+  .tgt .name{font-weight:600;font-size:13.5px}
+  .tgt .desc{color:var(--muted);font-size:12px;margin-top:2px}
+  .tgt .addr{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .tgt a.open{font-size:12px;padding:6px 12px;border:1px solid var(--line);
+     border-radius:6px;color:var(--text);text-decoration:none;white-space:nowrap}
+  .tgt a.open:hover{border-color:var(--focus)}
+  .kind{font-family:var(--mono);font-size:10px;text-transform:uppercase;
+     letter-spacing:.05em;color:var(--accent);border:1px solid var(--accent-dim);
+     border-radius:4px;padding:1px 6px;margin-left:6px}
+  .aud{font-family:var(--mono);font-size:11.5px;border-bottom:1px solid var(--line);
+       padding:6px 0;display:grid;grid-template-columns:130px 150px 1fr auto;gap:10px}
+  .aud .r-done{color:var(--ok)} .aud .r-blocked,.aud .r-rejected{color:var(--bad)}
+  .aud .r-running,.aud .r-awaiting_approval{color:var(--medium)}
+  .aud-wrap{margin-top:8px;max-height:280px;overflow:auto}
+  /* arsenal */
+  .tool-card{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+     padding:12px 14px;margin-top:10px}
+  .tool-card.hide{display:none}
+  .tool-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tool-head .tn{font-family:var(--mono);font-weight:600;font-size:13px}
+  .tool-desc{color:var(--muted);font-size:12px;margin:6px 0 8px}
+  .tool-run{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tool-run input,.tool-run select{padding:7px 9px;font-size:12.5px}
+  .tool-run input.tgt{flex:1;min-width:180px}
+  .tool-run input.prt{width:120px}
+  .badge.int-passive{background:var(--color-accent-brand-bg);color:var(--sev-info);border:1px solid var(--sev-info)}
+  .badge.int-safe-active{background:var(--color-accent-positive-bg);color:var(--sev-low);border:1px solid var(--sev-low)}
+  .badge.int-full{background:var(--color-accent-negative-bg);color:var(--sev-high);border:1px solid var(--sev-high)}
+  nav.tabs button.af{border-bottom:none}
+  .tgt-wrap{margin-top:10px}
+  .tgt-wrap .tgt{margin-top:0}
+  details.learn{background:var(--panel-2);border:1px solid var(--line);border-top:none;
+     border-radius:0 0 9px 9px;padding:8px 14px 10px;margin-top:-1px}
+  details.learn>summary{cursor:pointer;font-size:12px;color:var(--accent);padding:2px 0}
+  details.learn ul{margin:6px 0;padding-left:18px;font-size:12.5px}
+  details.sol{margin-top:6px} details.sol>summary{cursor:pointer;font-size:12px;color:var(--sev-medium)}
+  details.sol .kv{margin-top:6px;padding:8px 10px;background:var(--ink);border:1px solid var(--line);border-radius:6px}
+  @media(max-width:760px){.settings,.grid2{grid-template-columns:1fr}
+     .aud{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="mark">МГТС <b style="color:var(--color-text-primary);font-family:var(--font-compact);font-weight:500;font-size:15px">AI-SEC Console</b></span>
+    <span class="spacer"></span>
+    <span class="sub"><span id="soarDot" class="env-dot"></span>soar</span>
+    <span class="sub"><span id="pentDot" class="env-dot"></span>pentest</span>
+  </header>
+
+  <!-- connection settings -->
+  <div class="settings">
+    <div>
+      <label>SOAR URL</label>
+      <input id="soarUrl" value="http://127.0.0.1:8010">
+    </div>
+    <div>
+      <label>Pentest URL</label>
+      <input id="pentUrl" value="http://127.0.0.1:8020">
+    </div>
+    <div>
+      <label>Operator token</label>
+      <input id="token" type="password" placeholder="сырой operator-токен">
+    </div>
+    <div style="display:flex;align-items:end">
+      <button id="saveBtn" style="width:100%">Connect</button>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button id="tabSoar" class="active" onclick="showTab('soar')">Incident triage</button>
+    <button id="tabPent" onclick="showTab('pent')">Pentest loop</button>
+    <button id="tabLab" onclick="showTab('lab')">Lab dashboard</button>
+    <button id="tabArsenal" onclick="showTab('arsenal')">Arsenal</button>
+  </nav>
+
+  <!-- ===== SOAR ===== -->
+  <section id="soar" class="panel">
+    <h2>Incident triage</h2>
+    <p class="hint">Отправьте инцидент — получите оценку и шаги реагирования от локальной модели.</p>
+    <div class="grid2">
+      <div class="field"><label>Incident ID</label><input id="incId" value="INC-42"></div>
+      <div class="field"><label>Source</label>
+        <select id="incSrc"><option>EDR</option><option>SIEM</option><option>Firewall</option><option>IDS</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Title</label><input id="incTitle" value="Подозрительный PowerShell"></div>
+    <div class="field"><label>Raw (лог / описание)</label>
+      <textarea id="incRaw">хост WKS-17 (10.0.4.17), пользователь ivanov, запущен encoded PowerShell с обращением к внешнему IP 198.51.100.23</textarea>
+    </div>
+    <div class="btn-row">
+      <button onclick="advise()">Get recommendation</button>
+      <label class="row-check"><input type="checkbox" id="incExt"> обогатить внешним ИИ (обезличенно)</label>
+    </div>
+    <div id="soarStatus" class="status"></div>
+    <div id="soarOut" class="out"></div>
+  </section>
+
+  <!-- ===== PENTEST ===== -->
+  <section id="pent" class="panel" style="display:none">
+    <h2>Pentest loop</h2>
+    <p class="hint">Модель предлагает шаг → вы подтверждаете → запускается сканер в рамках scope. Вывод разбирается и подаётся в следующий шаг.</p>
+    <div class="field"><label>Objective</label>
+      <input id="objective" value="разведка внешнего периметра">
+    </div>
+    <div class="btn-row">
+      <button onclick="planStep()">Propose step</button>
+      <button class="ghost" onclick="genReport()">Отчёт: превью + .md</button>
+      <label class="row-check"><input type="checkbox" id="analyzeExt"> разбирать вывод внешним ИИ (обезличенно)</label>
+      <span class="step-meta" id="sessLbl"></span>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+      <button class="ghost" onclick="fetchReport()">Отчёт по сессии</button>
+      <button class="ghost" onclick="downloadReport()">Скачать .md</button>
+    </div>
+    <div id="pentStatus" class="status"></div>
+    <div id="pentOut" class="out"></div>
+  </section>
+
+  <!-- ===== LAB DASHBOARD ===== -->
+  <section id="lab" class="panel" style="display:none">
+    <h2>Lab dashboard</h2>
+    <p class="hint">Активный scope, тренировочные мишени и журнал действий. Обновляется автоматически.</p>
+    <div class="btn-row">
+      <button class="ghost" onclick="loadLab()">Обновить</button>
+      <label class="row-check"><input type="checkbox" id="labAuto" checked onchange="toggleAuto()"> авто-обновление (5с)</label>
+    </div>
+
+    <div id="scopeBox" class="card" style="margin-top:14px"></div>
+
+    <h3 style="margin:18px 0 0;font-size:13.5px">Тренировочные мишени</h3>
+    <div id="targetsBox"></div>
+
+    <h3 style="margin:18px 0 0;font-size:13.5px">Журнал действий</h3>
+    <div id="auditBox"></div>
+    <div id="labStatus" class="status"></div>
+  </section>
+
+  <!-- ===== ARSENAL ===== -->
+  <section id="arsenal" class="panel" style="display:none">
+    <h2>Arsenal</h2>
+    <p class="hint">Все инструменты allowlist. Запуск по выбранной цели напрямую — с тем же scope-чеком, потолком интенсивности и аудитом. Оператор выбирает сам (human-in-the-loop).</p>
+    <div class="btn-row">
+      <span class="step-meta">Фильтр:</span>
+      <button class="ghost af active" data-f="all" onclick="filterArsenal('all',this)">все</button>
+      <button class="ghost af" data-f="passive" onclick="filterArsenal('passive',this)">passive</button>
+      <button class="ghost af" data-f="safe-active" onclick="filterArsenal('safe-active',this)">safe-active</button>
+      <button class="ghost af" data-f="full" onclick="filterArsenal('full',this)">full</button>
+      <label class="row-check" style="margin-left:auto"><input type="checkbox" id="arsExt"> разбирать вывод внешним ИИ</label>
+    </div>
+    <div id="arsList"></div>
+    <div id="arsStatus" class="status"></div>
+    <div id="arsOut" class="out"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const cfg = { soar:"", pent:"", token:"" };
+
+// сессия хранится только на время вкладки браузера
+function loadCfg(){
+  cfg.soar = sessionStorage.getItem("soarUrl") || $("soarUrl").value;
+  cfg.pent = sessionStorage.getItem("pentUrl") || $("pentUrl").value;
+  cfg.token = sessionStorage.getItem("token") || "";
+  $("soarUrl").value = cfg.soar; $("pentUrl").value = cfg.pent; $("token").value = cfg.token;
+}
+$("saveBtn").onclick = () => {
+  cfg.soar=$("soarUrl").value.trim(); cfg.pent=$("pentUrl").value.trim(); cfg.token=$("token").value.trim();
+  sessionStorage.setItem("soarUrl",cfg.soar); sessionStorage.setItem("pentUrl",cfg.pent);
+  sessionStorage.setItem("token",cfg.token);
+  pingHealth();
+};
+
+function showTab(t){
+  for(const s of ["soar","pent","lab","arsenal"]) $(s).style.display = (s===t)?"block":"none";
+  $("tabSoar").classList.toggle("active",t==="soar");
+  $("tabPent").classList.toggle("active",t==="pent");
+  $("tabLab").classList.toggle("active",t==="lab");
+  $("tabArsenal").classList.toggle("active",t==="arsenal");
+  if(t==="lab") loadLab();
+  if(t==="arsenal") loadArsenal();
+}
+
+async function api(base, path, opts){
+  const r = await fetch(base+path, {
+    ...opts,
+    headers:{ "content-type":"application/json", "x-api-key":cfg.token, ...(opts?.headers||{}) }
+  });
+  const text = await r.text();
+  let data; try{ data = JSON.parse(text); }catch{ data = {raw:text}; }
+  if(!r.ok){
+    const msg = data.detail || data.raw || r.statusText;
+    throw new Error(r.status===429 ? "Слишком часто — подождите минуту (429)"
+                  : r.status===403 ? ("Отказано: "+msg)
+                  : r.status===401 ? "Нужен корректный operator-токен (401)"
+                  : (r.status+": "+msg));
+  }
+  return data;
+}
+
+async function pingHealth(){
+  for(const [dot,base] of [["soarDot",cfg.soar||$("soarUrl").value],["pentDot",cfg.pent||$("pentUrl").value]]){
+    try{ const r = await fetch(base+"/healthz"); $(dot).className="env-dot "+(r.ok?"up":"down"); }
+    catch{ $(dot).className="env-dot down"; }
+  }
+}
+
+function sevBadge(s){ s=(s||"info").toLowerCase(); return `<span class="badge sev-${s}">${s}</span>`; }
+function list(items){ return (items&&items.length)? "<ul>"+items.map(i=>`<li>${esc(i)}</li>`).join("")+"</ul>" : `<span class="kv">—</span>`; }
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+/* ---------- SOAR ---------- */
+async function advise(){
+  const st=$("soarStatus"); st.className="status busy"; st.textContent="Анализирую инцидент…";
+  $("soarOut").innerHTML="";
+  try{
+    const d = await api(cfg.soar||$("soarUrl").value, "/v1/advise", {method:"POST", body:JSON.stringify({
+      incident_id:$("incId").value, source:$("incSrc").value, title:$("incTitle").value,
+      raw:$("incRaw").value, enrich_external:$("incExt").checked
+    })});
+    const a = d.advice||{};
+    let html = `<div class="card"><h3><span>${esc(a.summary||"—")}</span> ${sevBadge(a.severity)}</h3>
+      <div class="kv">confidence: <b>${esc(a.confidence||"—")}</b> · route: <b>${esc(d.route)}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
+      ${(a.mitre&&a.mitre.length)?`<div style="margin-top:8px">${a.mitre.map(m=>`<span class="chip">${esc(m)}</span>`).join("")}</div>`:""}
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Немедленные действия</h3>${list(a.immediate_actions)}</div>
+      <div class="card"><h3>Сдерживание</h3>${list(a.containment)}</div>
+      <div class="card"><h3>Что проверить</h3>${list(a.investigation)}</div>
+      <div class="card"><h3>Признаки ложного срабатывания</h3>${list(a.false_positive_signs)}</div>
+    </div>`;
+    if(a.external_enrichment){ html+=`<div class="card"><h3>Обогащение (внешний ИИ)</h3><pre>${esc(JSON.stringify(a.external_enrichment,null,2))}</pre></div>`; }
+    $("soarOut").innerHTML=html; st.className="status"; st.textContent="Готово.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+/* ---------- PENTEST ---------- */
+let sessionId=null, lastOutput=null, currentStepId=null;
+
+async function planStep(){
+  const st=$("pentStatus"); st.className="status busy"; st.textContent="Модель предлагает следующий шаг…";
+  try{
+    const d = await api(cfg.pent||$("pentUrl").value, "/v1/plan", {method:"POST", body:JSON.stringify({
+      session_id:sessionId, objective:$("objective").value, last_output:lastOutput
+    })});
+    sessionId=d.session_id; currentStepId=d.step_id;
+    $("sessLbl").textContent="session "+sessionId.slice(0,8);
+    renderProposal(d);
+    st.className="status"; st.textContent=d.scope_ok?"Шаг предложен — подтвердите запуск.":"Шаг вне scope — запуск заблокирован.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+function renderProposal(d){
+  const p=d.proposed||{};
+  const scopeHtml = d.scope_ok
+    ? `<span class="scope-ok">✓ в scope</span>`
+    : `<span class="scope-bad">✗ вне scope</span> <span class="kv">${esc((d.problems||[]).join("; "))}</span>`;
+  let actions = d.scope_ok
+    ? `<div class="btn-row" style="margin-top:12px">
+         <button onclick="approve(true)">Approve &amp; run</button>
+         <button class="danger" onclick="approve(false)">Reject</button>
+       </div>`
+    : `<div class="status err" style="margin-top:10px">Подтверждение недоступно: цель не входит в согласованный scope.</div>`;
+  $("pentOut").innerHTML = `<div class="card">
+      <h3><span>Предложенный шаг</span> <span class="chip">${esc(p.tool||"?")}</span></h3>
+      <div class="step-meta">target: <b>${esc(p.target||"—")}</b> · ${scopeHtml}</div>
+      <div class="kv" style="margin-top:6px"><b>Зачем:</b> ${esc(p.rationale||"—")}</div>
+      <div class="kv"><b>Ожидаем:</b> ${esc(p.expected||"—")}</div>
+      ${actions}
+    </div>`;
+}
+
+async function approve(ok){
+  const st=$("pentStatus");
+  if(!currentStepId){ st.className="status err"; st.textContent="Нет активного шага."; return; }
+  st.className="status busy"; st.textContent= ok?"Запускаю инструмент…":"Отклоняю шаг…";
+  try{
+    const d = await api(cfg.pent||$("pentUrl").value, "/v1/approve", {method:"POST", body:JSON.stringify({
+      step_id:currentStepId, approved:ok, analyze_route:$("analyzeExt").checked?"external":"local"
+    })});
+    if(d.status==="rejected_by_human"){ st.className="status"; st.textContent="Шаг отклонён."; return; }
+    renderResult(d);
+    st.className="status"; st.textContent="Выполнено. Нажмите Propose step для следующего шага.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+function renderResult(d){
+  const tr=d.tool_result||{}, an=d.analysis||{};
+  lastOutput = (tr.stdout||"") + "\n" + (tr.stderr||"");   // подаётся в следующий /plan
+  const findings=(an.findings||[]).map(f=>`<div class="card">
+      <h3><span>${esc(f.title||"finding")}</span> ${sevBadge(f.severity)}</h3>
+      <div class="kv"><b>Evidence:</b> ${esc(f.evidence||"—")}</div>
+      <div class="kv"><b>Рекомендация:</b> ${esc(f.recommendation||"—")}</div>
+    </div>`).join("") || `<div class="kv">Модель не выделила находок.</div>`;
+  $("pentOut").insertAdjacentHTML("beforeend", `<div class="divider"></div>
+    <div class="kv">rc: <b>${tr.returncode}</b> · analyze: <b>${esc(d.analyze_route||"local")}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
+    <pre>${esc(tr.stdout||"(пусто)")}${tr.stderr?("\n--- stderr ---\n"+esc(tr.stderr)):""}</pre>
+    <h3 style="margin:16px 0 0;font-size:13.5px">Разбор</h3>
+    ${findings}
+    ${an.next_suggestion?`<div class="card"><h3>Что дальше</h3><div class="kv">${esc(an.next_suggestion)}</div></div>`:""}`);
+  currentStepId=null;
+}
+
+/* ---------- SESSION REPORT ---------- */
+async function fetchReport(){
+  const st=$("pentStatus");
+  if(!sessionId){ st.className="status err"; st.textContent="Сначала выполните хотя бы один шаг."; return; }
+  st.className="status busy"; st.textContent="Собираю отчёт…";
+  try{
+    const r = await api(cfg.pent||$("pentUrl").value, "/v1/report/"+sessionId, {method:"GET"});
+    const sev = r.summary_by_severity||{};
+    const chips = ["critical","high","medium","low","info"]
+      .filter(s=>sev[s]).map(s=>`<span class="badge sev-${s}">${s}: ${sev[s]}</span>`).join(" ");
+    const items = (r.findings||[]).map((f,i)=>`<div class="card">
+        <h3><span>${i+1}. ${esc(f.title)}</span> ${sevBadge(f.severity)}</h3>
+        <div class="kv">${esc(f.target)} · ${esc(f.tool)}${f.mitre?` · ${esc(f.mitre)}`:""}</div>
+        <div class="kv" style="margin-top:4px"><b>Evidence:</b> ${esc(f.evidence||"—")}</div>
+        <div class="kv"><b>Рекомендация:</b> ${esc(f.recommendation||"—")}</div>
+      </div>`).join("") || `<div class="kv">Находок пока нет.</div>`;
+    $("pentOut").innerHTML = `<div class="divider"></div>
+      <div class="card"><h3><span>Отчёт: ${esc(r.engagement)}</span></h3>
+        <div class="kv">шагов: ${r.steps_run} · мишени: ${esc((r.targets||[]).join(", ")||"—")}</div>
+        <div style="margin-top:8px">${chips||'<span class="kv">без находок</span>'}</div>
+      </div>${items}`;
+    st.className="status"; st.textContent="Отчёт собран.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+async function downloadReport(){
+  const st=$("pentStatus");
+  if(!sessionId){ st.className="status err"; st.textContent="Нет активной сессии."; return; }
+  try{
+    const r = await api(cfg.pent||$("pentUrl").value, "/v1/report/"+sessionId+"/markdown", {method:"GET"});
+    const blob = new Blob([r.markdown], {type:"text/markdown"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "report_"+sessionId.slice(0,8)+".md";
+    a.click(); URL.revokeObjectURL(a.href);
+    st.className="status"; st.textContent="Отчёт скачан.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+/* ---------- SESSION REPORT ---------- */
+async function genReport(){
+  const st=$("pentStatus");
+  if(!sessionId){ st.className="status err"; st.textContent="Сначала запустите хотя бы один шаг."; return; }
+  st.className="status busy"; st.textContent="Собираю отчёт по сессии…";
+  try{
+    const d = await api(cfg.pent||$("pentUrl").value, "/v1/report/"+sessionId+"/markdown", {method:"GET"});
+    const md = d.markdown||"";
+    // показать превью
+    $("pentOut").insertAdjacentHTML("beforeend",
+      `<div class="divider"></div><h3 style="font-size:13.5px">Отчёт по сессии</h3><pre>${esc(md)}</pre>`);
+    // скачать как .md
+    const blob = new Blob([md], {type:"text/markdown"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download="report_"+sessionId.slice(0,8)+".md"; a.click();
+    URL.revokeObjectURL(url);
+    st.className="status"; st.textContent="Отчёт сформирован и скачан.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+/* ---------- LAB DASHBOARD ---------- */
+let labTimer=null;
+
+function toggleAuto(){
+  if($("labAuto").checked){ labTimer=setInterval(loadLab, 5000); }
+  else if(labTimer){ clearInterval(labTimer); labTimer=null; }
+}
+
+async function loadLab(){
+  const base = cfg.pent||$("pentUrl").value;
+  const st=$("labStatus");
+  try{
+    const [scope, tg, audit] = await Promise.all([
+      api(base,"/v1/scope",{method:"GET"}),
+      api(base,"/v1/lab/targets",{method:"GET"}),
+      api(base,"/v1/audit?limit=40",{method:"GET"}),
+    ]);
+    renderScope(scope); renderTargets(tg.targets||[]); renderAudit(audit.records||[]);
+    st.className="status"; st.textContent="Обновлено "+new Date().toLocaleTimeString();
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+function renderScope(s){
+  const hosts=(s.allowed_hosts||[]).map(h=>`<span class="chip">${esc(h)}</span>`).join("")||"—";
+  const excl=(s.excluded||[]).map(h=>`<span class="chip">${esc(h)}</span>`).join("")||"—";
+  $("scopeBox").innerHTML=`<h3><span>Scope: ${esc(s.engagement_id)}</span>
+      <span class="badge sev-medium">intensity: ${esc(s.max_intensity)}</span></h3>
+    <div class="kv" style="margin-top:6px"><b>Разрешено:</b> ${hosts}</div>
+    <div class="kv" style="margin-top:4px"><b>Исключено:</b> ${excl}</div>`;
+}
+
+function renderTargets(list){
+  if(!list.length){ $("targetsBox").innerHTML=`<div class="kv" style="margin-top:8px">Мишени не заданы.</div>`; return; }
+  $("targetsBox").innerHTML=list.map((t,i)=>{
+    const scopeMark = t.in_scope ? "" : `<span class="badge sev-high" title="вне scope">вне scope</span>`;
+    const open = t.url ? `<a class="open" href="${esc(t.url)}" target="_blank" rel="noopener">Открыть ↗</a>` : "";
+    const obj = (t.objectives||[]).map(o=>`<li>${esc(o)}</li>`).join("");
+    const learn = (obj || t.hint) ? `<details class="learn">
+        <summary>Учебные цели${t.hint?" · подсказка":""}</summary>
+        ${obj?`<ul>${obj}</ul>`:""}
+        ${t.hint?`<details class="sol"><summary>Показать решение-подсказку</summary><div class="kv">${esc(t.hint)}</div></details>`:""}
+      </details>` : "";
+    return `<div class="tgt-wrap"><div class="tgt">
+      <span class="dot ${t.up?'up':'down'}" title="${t.up?'доступна':'недоступна'}"></span>
+      <div class="meta">
+        <div class="name">${esc(t.name)}<span class="kind">${esc(t.kind||'')}</span> ${scopeMark}</div>
+        <div class="desc">${esc(t.description||'')}</div>
+        <div class="addr">${esc(t.host)}:${t.port} · ${t.up?'up':'down'}</div>
+      </div>${open}
+    </div>${learn}</div>`;
+  }).join("");
+}
+
+function renderAudit(recs){
+  if(!recs.length){ $("auditBox").innerHTML=`<div class="kv" style="margin-top:8px">Пока пусто — запустите шаг в Pentest loop.</div>`; return; }
+  const rows=recs.map(r=>{
+    const t=(r.iso||"").replace("T"," ").replace("Z","");
+    const res=esc(r.result||"");
+    return `<div class="aud">
+      <span class="kv">${esc(t)}</span>
+      <span>${esc(r.event_type||"")}</span>
+      <span class="kv">${esc(r.resource||"")}</span>
+      <span class="r-${res}">${res}</span>
+    </div>`;
+  }).join("");
+  $("auditBox").innerHTML=`<div class="aud-wrap">${rows}</div>`;
+}
+
+/* ---------- ARSENAL ---------- */
+// какие параметры нужны каким инструментам
+const TOOL_PARAMS = {
+  nmap_service:{ports:"1-1000"}, nmap_vuln:{ports:"1-1000"}, enum_services:{ports:"1-1000"},
+  content_discovery:{wordlist:["common","big"]},
+  llm_probe:{probe:["system_leak","secret_leak","role_confuse","tool_misuse"]},
+};
+let arsenalTools = {};
+
+async function loadArsenal(){
+  const st=$("arsStatus"); st.className="status busy"; st.textContent="Загружаю инструменты…";
+  try{
+    arsenalTools = await api(cfg.pent||$("pentUrl").value, "/v1/tools", {method:"GET"});
+    renderArsenal(); st.className="status"; st.textContent=Object.keys(arsenalTools).length+" инструментов";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+function renderArsenal(){
+  const order={passive:0,"safe-active":1,full:2};
+  const names=Object.keys(arsenalTools).sort((a,b)=>
+    (order[arsenalTools[a].intensity]-order[arsenalTools[b].intensity])||a.localeCompare(b));
+  $("arsList").innerHTML = names.map(n=>{
+    const t=arsenalTools[n], p=TOOL_PARAMS[n]||{};
+    let params="";
+    if(p.ports!==undefined) params+=`<input class="prt" id="p_${n}" placeholder="порты" value="${p.ports}">`;
+    if(p.wordlist) params+=`<select id="w_${n}">${p.wordlist.map(w=>`<option>${w}</option>`).join("")}</select>`;
+    if(p.probe) params+=`<select id="pr_${n}">${p.probe.map(w=>`<option>${w}</option>`).join("")}</select>`;
+    return `<div class="tool-card" data-int="${t.intensity}">
+      <div class="tool-head"><span class="tn">${esc(n)}</span>
+        <span class="badge int-${t.intensity}">${t.intensity}</span></div>
+      <div class="tool-desc">${esc(t.description)}</div>
+      <div class="tool-run">
+        <input class="tgt" id="t_${n}" placeholder="цель (напр. juiceshop или http://vulnllm:8000)">
+        ${params}
+        <button onclick="runTool('${n}')">Run</button>
+      </div></div>`;
+  }).join("");
+  applyArsenalFilter();
+}
+
+let arsFilter="all";
+function filterArsenal(f,btn){
+  arsFilter=f;
+  document.querySelectorAll(".af").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active"); applyArsenalFilter();
+}
+function applyArsenalFilter(){
+  document.querySelectorAll(".tool-card").forEach(c=>{
+    c.classList.toggle("hide", arsFilter!=="all" && c.dataset.int!==arsFilter);
+  });
+}
+
+async function runTool(name){
+  const st=$("arsStatus");
+  const target=($("t_"+name)?.value||"").trim();
+  if(!target){ st.className="status err"; st.textContent="Укажите цель для "+name; return; }
+  const body={tool:name, target:target, session_id:sessionId,
+              analyze_route:$("arsExt").checked?"external":"local"};
+  if($("p_"+name)) body.ports=$("p_"+name).value.trim();
+  if($("w_"+name)) body.wordlist=$("w_"+name).value;
+  if($("pr_"+name)) body.probe=$("pr_"+name).value;
+  st.className="status busy"; st.textContent=`Запускаю ${name} по ${target}…`;
+  $("arsOut").innerHTML="";
+  try{
+    const d=await api(cfg.pent||$("pentUrl").value, "/v1/run", {method:"POST", body:JSON.stringify(body)});
+    sessionId=d.session_id; $("sessLbl").textContent="session "+sessionId.slice(0,8);
+    const tr=d.tool_result||{}, an=d.analysis||{};
+    const findings=(an.findings||[]).map(f=>`<div class="card">
+        <h3><span>${esc(f.title||"finding")}</span> ${sevBadge(f.severity)}</h3>
+        <div class="kv"><b>Evidence:</b> ${esc(f.evidence||"—")}</div>
+        <div class="kv"><b>Рекомендация:</b> ${esc(f.recommendation||"—")}</div>
+      </div>`).join("") || `<div class="kv">Модель не выделила находок.</div>`;
+    $("arsOut").innerHTML=`<div class="kv">rc: <b>${tr.returncode}</b> · analyze: <b>${esc(d.analyze_route||"local")}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
+      <pre>${esc(tr.stdout||"(пусто)")}${tr.stderr?("\n--- stderr ---\n"+esc(tr.stderr)):""}</pre>
+      <h3 style="margin:14px 0 0;font-size:13.5px">Разбор</h3>${findings}`;
+    st.className="status"; st.textContent="Готово. Результат записан в сессию — доступен в отчёте.";
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+loadCfg(); pingHealth();
+</script>
+</body>
+</html>

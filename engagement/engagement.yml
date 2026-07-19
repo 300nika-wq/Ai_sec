@@ -1,0 +1,11 @@
+# Техническая проекция подписанного scope. Правьте ТОЛЬКО по согласованию с заказчиком.
+engagement_id: "ACME-EXT-2026-07"
+# Потолок агрессивности: passive | safe-active | full
+max_intensity: "safe-active"
+allowed_cidrs:
+  - "203.0.113.0/24"       # пример: внешний диапазон заказчика
+allowed_hosts:
+  - "example.com"          # домен и все поддомены
+excluded:
+  - "vpn.example.com"      # явно НЕ трогать
+  - "203.0.113.7"          # критичный хост вне работ

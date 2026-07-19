@@ -1,0 +1,128 @@
+name: ai-sec-lab
+services:
+  ollama:
+    image: ollama/ollama:latest
+    # Профиль local-model: сервис поднимается только если профиль активен.
+    # Управляется через COMPOSE_PROFILES в .env (по умолчанию включён).
+    # Для внешнего Ollama очистите COMPOSE_PROFILES — локальный движок не стартует.
+    profiles: [ "local-model" ]
+    volumes: [ "ollama_models:/root/.ollama" ]
+    restart: unless-stopped
+    networks: [ labnet ]
+
+  sanitizer:
+    build: ./shared/sanitizer
+    env_file: [ .env ]
+    environment:
+      AUDIT_LOG: /data/audit/sanitizer.log
+    volumes: [ "audit:/data/audit" ]
+    security_opt: [ "no-new-privileges:true" ]
+    read_only: true
+    tmpfs: [ /tmp ]
+    networks: [ labnet ]
+
+  pentest:
+    build: ./pentest
+    env_file: [ .env ]
+    environment:
+      SANITIZER_URL: http://sanitizer:8000
+      ENGAGEMENT_FILE: /engagement/engagement.lab.yml
+      LAB_TARGETS_FILE: /engagement/targets.lab.yml
+      AUDIT_LOG: /data/audit/pentest.log
+    volumes:
+      - "audit:/data/audit"
+      - "./engagement:/engagement:ro"
+    depends_on: [ sanitizer ]
+    security_opt: [ "no-new-privileges:true" ]
+    ports: [ "127.0.0.1:8020:8020" ]
+    networks: [ labnet ]
+
+  # ================= Тренировочные мишени (намеренно уязвимые) =================
+  juiceshop:
+    image: bkimminich/juice-shop:latest
+    ports: [ "127.0.0.1:3000:3000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ juiceshop ] }
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    ports: [ "127.0.0.1:3001:80" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ dvwa ] }
+
+  webgoat:
+    image: webgoat/webgoat:latest
+    ports: [ "127.0.0.1:3002:8080" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ webgoat ] }
+
+  vampi:
+    image: erev0s/vampi:latest
+    ports: [ "127.0.0.1:3003:5000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ vampi ] }
+
+  # Сетевая мишень: множество уязвимых сервисов (FTP/SSH/telnet/SMB/MySQL/web)
+  metasploitable:
+    image: tleemcjr/metasploitable2
+    command: [ "/bin/sh", "-c", "/etc/rc.local; /bin/bash /start.sh || tail -f /dev/null" ]
+    ports: [ "127.0.0.1:3004:80" ]   # bundled web (Mutillidae/DVWA) для наглядности
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ metasploitable ] }
+
+  # Уязвимое LLM-приложение: тренировка на prompt injection / утечке промпта
+  vulnllm:
+    build: ./targets/vuln-llm-app
+    env_file: [ .env ]
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+    ports: [ "127.0.0.1:3005:8000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ vulnllm ] }
+
+  # Уязвимое RAG-приложение: тренировка на indirect prompt injection (poisoning корпуса)
+  ragapp:
+    build: ./targets/rag-app
+    env_file: [ .env ]
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+    ports: [ "127.0.0.1:3006:8000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ ragapp ] }
+
+  # GraphQL-мишень: Damn Vulnerable GraphQL Application
+  dvga:
+    image: dolevf/dvga:latest
+    ports: [ "127.0.0.1:3007:5013" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ dvga ] }
+
+  # Cloud/secrets мисконфиг: утечка секретов, открытый .git, IMDS SSRF (фейковые данные)
+  misconfig:
+    build: ./targets/misconfig-app
+    ports: [ "127.0.0.1:3008:8000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ misconfig ] }
+
+  # MCP-сервер с отравленным инструментом (agentic supply chain / tool poisoning)
+  mcppoison:
+    build: ./targets/mcp-poison
+    ports: [ "127.0.0.1:3009:8000" ]
+    restart: unless-stopped
+    networks:
+      labnet: { aliases: [ mcppoison ] }
+
+networks:
+  labnet: { driver: bridge }
+volumes:
+  ollama_models: {}
+  audit: {}
