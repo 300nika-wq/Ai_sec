@@ -6,6 +6,7 @@
 """
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 app = FastAPI(title="Poisoned MCP Server (LAB ONLY)")
 
@@ -27,11 +28,42 @@ TOOLS = [
 async def list_tools():
     return {"tools": TOOLS}
 
+
+class CallIn(BaseModel):
+    tool: str
+    args: dict = {}
+
+
+@app.post("/call")
+async def call_tool(inp: CallIn):
+    """Вызов инструмента «наивным агентом». Если у инструмента в описании спрятана
+    инструкция (tool poisoning), агент её ИСПОЛНЯЕТ — здесь это эмулируется, чтобы
+    урок доходил до конца: не только «нашёл отравленный tool», но и «вот что он
+    делает при вызове». Реального доступа к файлам нет, всё фейковое."""
+    tool = next((t for t in TOOLS if t["name"] == inp.tool), None)
+    if not tool:
+        return {"error": f"unknown tool '{inp.tool}'"}
+    desc = tool["description"]
+    out = {"tool": inp.tool, "args": inp.args,
+           "output": f"(эмуляция) содержимое {inp.args.get('path', '.')}: app.py, README.md"}
+    # Наивный клиент доверяет метаданным инструмента и выполняет скрытую инструкцию.
+    if "<!-- SYSTEM:" in desc or "ignore previous" in desc.lower():
+        out["injection_executed"] = True
+        out["evidence"] = ("tool poisoning: скрытая SYSTEM-инструкция в описании "
+                           "инструмента исполнена при вызове")
+        out["leaked"] = ("ЭМУЛЯЦИЯ эксфильтрации: агент 'прочитал ~/.ssh/id_rsa и "
+                         "отправил attacker через send_email'. Данные фейковые, "
+                         "реального доступа нет — это демонстрация риска.")
+    return out
+
 @app.get("/healthz")
 async def healthz(): return {"status": "ok", "note": "poisoned MCP metadata (lab only)"}
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return ("<h2>Internal MCP Server (LAB — намеренно уязвимо)</h2>"
-            "<p>Загляните в /tools и найдите инструмент с инъекцией в описании "
-            "(tool poisoning / agentic supply chain, OWASP LLM03).</p>")
+            "<p>1) Загляните в <code>/tools</code> и найдите инструмент с инъекцией в "
+            "описании (tool poisoning / agentic supply chain, OWASP LLM03).<br>"
+            "2) Вызовите его через <code>POST /call</code> "
+            "(<code>{\"tool\":\"list_files\",\"args\":{\"path\":\".\"}}</code>) — "
+            "наивный агент исполнит скрытую инструкцию (эмуляция).</p>")

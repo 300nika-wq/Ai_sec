@@ -210,13 +210,21 @@ excluded: []               # что не трогать никогда
 Планировщик и вкладка Arsenal подхватят инструмент автоматически (список из `/v1/tools`).
 
 **Инструменты тестирования защиты ИИ (в allowlist).** Для мишеней `vulnllm`/
-`ragapp`/`mcppoison` доступны: `llm_probe` (probe-набор: `system_leak`,
-`secret_leak`, `role_confuse`, `tool_misuse`, а также jailbreak-паттерны
-`dan_jailbreak`, `payload_split`, `encoding_bypass`, `refusal_suppress`),
-`llm_output_handling` (небезопасная обработка вывода, OWASP LLM05 — XSS из ответа
-модели), `rag_poison`/`rag_query` (indirect injection), `mcp_scan` (tool poisoning).
-Все — фиксированные payload'ы из набора (не free-form), класс `safe-active`,
-подхватываются панелью Arsenal автоматически.
+`ragapp`/`mcppoison`:
+- `llm_probe` — prompt injection/jailbreak (probe: `system_leak`, `secret_leak`,
+  `role_confuse`, `tool_misuse`, `dan_jailbreak`, `payload_split`,
+  `encoding_bypass`, `refusal_suppress`);
+- `llm_pii_leak` — извлечение ПДн/чувствительных данных (OWASP **LLM02**);
+- `llm_output_handling` — небезопасная обработка вывода, XSS из ответа (**LLM05**);
+- `rag_poison`/`rag_query` — indirect prompt injection через корпус (**LLM08→LLM01**);
+- `rag_exfil` — эксфильтрация секрета в attacker-URL из RAG (**LLM08→LLM02**),
+  триггерится тем же `rag_query`;
+- `mcp_scan` — поиск отравленного инструмента (**LLM03**);
+- `mcp_tool_invoke` — вызов отравленного инструмента, демонстрация сработавшей
+  инъекции (**LLM03**, требует `POST /call` у мишени `mcppoison` — добавлено).
+
+Все — фиксированные payload'ы (не free-form), класс `safe-active`,
+подхватываются панелью Arsenal и таксономией отчёта автоматически.
 
 **Граница:** не добавляйте в агент автоматизированный брутфорс/подбор паролей и
 нагрузочные (DoS/unbounded consumption) атаки — это двойное назначение; такие
