@@ -276,6 +276,42 @@
       </div>
     </details>
 
+    <details id="llmEditor" class="card" style="margin-top:10px">
+      <summary style="cursor:pointer;color:var(--accent);font-weight:600">Настройки ИИ: адрес модели и маршрут (нужен admin-токен)</summary>
+      <div id="llmState" class="kv" style="margin:10px 0"></div>
+      <div class="grid2">
+        <div class="field"><label>Маршрут по умолчанию</label>
+          <select id="llmRoute">
+            <option value="local">local (локальная модель)</option>
+            <option value="external">external (внешний ИИ через санитайзер)</option>
+          </select>
+        </div>
+        <div class="field"><label>Локальная модель (Ollama)</label>
+          <input id="llmLocalModel" placeholder="qwen2.5:7b"></div>
+      </div>
+      <div class="field"><label>Адрес Ollama (можно другой сервер)</label>
+        <input id="llmOllamaUrl" placeholder="http://ollama:11434"></div>
+      <div class="divider"></div>
+      <p class="kv" style="margin:0 0 8px">Внешний ИИ (нужен ключ в <code>.env</code>; <b>ALLOW_EXTERNAL</b> тоже только в <code>.env</code>):</p>
+      <div class="grid2">
+        <div class="field"><label>Провайдер</label>
+          <select id="llmProvider">
+            <option value="anthropic">anthropic</option>
+            <option value="yandex">yandex (Алиса/YandexGPT)</option>
+            <option value="openai">openai-совместимый</option>
+          </select>
+        </div>
+        <div class="field"><label>Внешняя модель</label>
+          <input id="llmExtModel" placeholder="yandexgpt/latest"></div>
+      </div>
+      <div class="field"><label>Внешний URL (пусто = по умолчанию провайдера)</label>
+        <input id="llmExtUrl" placeholder="https://llm.api.cloud.yandex.net/foundationModels/v1/completion"></div>
+      <div class="btn-row">
+        <button onclick="saveLlm()">Сохранить настройки ИИ</button>
+        <span class="kv">Изменения в памяти; перезапуск сервисов вернёт к .env.</span>
+      </div>
+    </details>
+
     <h3 style="margin:18px 0 0;font-size:13.5px">Тренировочные мишени</h3>
     <div id="targetsBox"></div>
 
@@ -529,6 +565,7 @@ async function loadLab(){
       api(base,"/v1/audit?limit=40",{method:"GET"}),
     ]);
     renderScope(scope); renderTargets(tg.targets||[]); renderAudit(audit.records||[]);
+    loadLlm();
     st.className="status"; st.textContent="Обновлено "+new Date().toLocaleTimeString();
   }catch(e){ st.className="status err"; st.textContent=e.message; }
 }
@@ -561,6 +598,43 @@ async function saveScope(){
     st.className="status"; st.textContent="Scope обновлён (в памяти). "+(r.note||"");
     $("scopeEditor").open=false;
     loadLab();
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+/* ---------- LLM / модель ---------- */
+async function loadLlm(){
+  try{
+    const d=await api(cfg.pent||$("pentUrl").value, "/v1/llm/config", {method:"GET"});
+    const s=d.sanitizer||{};
+    const ext = s.allow_external ? "внешний РАЗРЕШЁН" : "внешний ВЫКЛ (ALLOW_EXTERNAL=false)";
+    const keys = [s.external_api_key_set?"ключ есть":"ключа нет",
+                  s.yandex_folder_set?"folder есть":""].filter(Boolean).join(", ");
+    $("llmState").innerHTML=`Маршрут по умолчанию: <b>${esc(d.default_route)}</b> · ${esc(ext)}`+
+      (keys?` · <span class="kv">${esc(keys)}</span>`:"");
+    const ed=$("llmEditor");
+    if(ed && !ed.open){
+      $("llmRoute").value=d.default_route||"local";
+      $("llmLocalModel").value=s.local_model||"";
+      $("llmOllamaUrl").value=s.ollama_url||"";
+      $("llmProvider").value=s.provider||"anthropic";
+      $("llmExtModel").value=s.external_model||"";
+      $("llmExtUrl").value=s.external_url||"";
+    }
+  }catch(e){ $("llmState").textContent="Настройки ИИ недоступны: "+e.message; }
+}
+
+async function saveLlm(){
+  const st=$("labStatus"); st.className="status busy"; st.textContent="Сохраняю настройки ИИ…";
+  try{
+    const body={ default_route:$("llmRoute").value,
+                 local_model:$("llmLocalModel").value.trim(),
+                 ollama_url:$("llmOllamaUrl").value.trim(),
+                 provider:$("llmProvider").value,
+                 external_model:$("llmExtModel").value.trim(),
+                 external_url:$("llmExtUrl").value.trim() };
+    const r=await api(cfg.pent||$("pentUrl").value, "/v1/llm/config", {method:"PUT", body:JSON.stringify(body)});
+    st.className="status"; st.textContent="Настройки ИИ обновлены (в памяти). "+(r.note||"");
+    $("llmEditor").open=false; loadLlm();
   }catch(e){ st.className="status err"; st.textContent=e.message; }
 }
 
@@ -606,7 +680,7 @@ function renderAudit(recs){
 const TOOL_PARAMS = {
   nmap_service:{ports:"1-1000"}, nmap_vuln:{ports:"1-1000"}, enum_services:{ports:"1-1000"},
   content_discovery:{wordlist:["common","big"]},
-  llm_probe:{probe:["system_leak","secret_leak","role_confuse","tool_misuse"]},
+  llm_probe:{probe:["system_leak","secret_leak","role_confuse","tool_misuse","dan_jailbreak","payload_split","encoding_bypass","refusal_suppress"]},
 };
 let arsenalTools = {};
 
