@@ -1,0 +1,34 @@
+# Отдельный опциональный стек: garak (LLM-сканер) + его веб-панель.
+# Держится отдельно от основного образа pentest (garak тяжёлый: torch/transformers).
+#
+# ТРЕБУЕТ, чтобы основной стенд был поднят (docker-compose.lab.yml) — garak
+# подключается к его сети labnet, чтобы ходить в мишени по именам (vulnllm, ragapp,
+# ollama). Порядок:
+#   docker compose -f docker-compose.lab.yml up -d
+#   docker compose -f docker-compose.garak.yml up -d --build
+# Панель: http://127.0.0.1:8030  (нужен operator/admin-токен из .env)
+name: ai-sec-garak
+services:
+  garak:
+    build: ./garak
+    env_file: [ .env ]
+    environment:
+      AUDIT_LOG: /data/audit/garak.log
+      # Куда garak вообще разрешено стучаться (защита от указания произвольного URL
+      # из браузера). По умолчанию — только мишени стенда и локальный Ollama.
+      GARAK_ALLOWED_HOSTS: ${GARAK_ALLOWED_HOSTS:-vulnllm,ragapp,ollama,127.0.0.1,localhost}
+    volumes:
+      - "garak_data:/data"
+    security_opt: [ "no-new-privileges:true" ]
+    ports: [ "127.0.0.1:8030:8030" ]   # веб-панель только на localhost
+    networks: [ labnet ]
+
+# Сеть основного стенда (docker-compose.lab.yml). Имя = <project>_<network>.
+# Если проект lab переименован — поправьте name ниже.
+networks:
+  labnet:
+    external: true
+    name: ai-sec-lab_labnet
+
+volumes:
+  garak_data: {}

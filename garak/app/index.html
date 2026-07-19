@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>МГТС · garak · AI-SEC</title>
+<style>
+  :root{
+    --brand:#008ae0; --brand-hover:#0072bd; --brand-sub:#e6f4fc;
+    --bg:#e9ecf0; --panel:#fff; --panel2:#f2f3f7; --line:#e2e5eb;
+    --text:#1d2023; --muted:#626c77; --inv:#1d2023; --inv-text:#fafafa;
+    --ok:#26cd58; --warn:#fac031; --bad:#f95721; --crit:#c0371a;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:'Segoe UI',system-ui,sans-serif; --r:12px; --rs:8px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+  header{display:flex;align-items:baseline;gap:12px;padding:24px 0 16px;border-bottom:1px solid var(--line)}
+  header .mark{font-weight:700;font-size:20px;color:var(--brand)}
+  header .mark b{color:var(--text);font-weight:600;font-size:15px}
+  header .sub{color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .spacer{flex:1}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+  .dot.up{background:var(--ok)} .dot.down{background:var(--bad)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-top:16px}
+  h2{margin:0 0 4px;font-size:15px} .hint{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+  label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+  input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-family:var(--sans);font-size:13px}
+  input:focus,select:focus{outline:none;border-color:var(--brand-hover);box-shadow:0 0 0 3px var(--brand-sub)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:1.4fr 1fr auto;gap:12px}
+  .field{margin-bottom:12px}
+  button{font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--brand);background:var(--brand);color:#fff;border-radius:var(--rs);padding:9px 16px}
+  button:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+  button.ghost{background:transparent;color:var(--text);border-color:#969fa8}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .probes{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:8px 0}
+  .probe{display:flex;gap:8px;align-items:flex-start;font-size:12.5px}
+  .probe input{width:auto;margin-top:3px} .probe .n{font-weight:600} .probe .d{color:var(--muted);font-size:11.5px}
+  .chip{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--brand);border:1px solid var(--brand);border-radius:4px;padding:1px 5px;margin-left:6px}
+  .status{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:10px;min-height:16px}
+  .status.err{color:var(--bad)} .status.busy{color:var(--brand)}
+  pre{background:var(--inv);color:var(--inv-text);border-radius:var(--rs);padding:12px 14px;overflow:auto;font-family:var(--mono);font-size:12px;max-height:320px;margin:8px 0 0}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden;min-width:80px}
+  .bar>span{display:block;height:100%}
+  .scan{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-top:8px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;cursor:pointer}
+  .scan:hover{border-color:var(--brand-hover)}
+  .scan .sid{font-family:var(--mono);font-size:12px} .scan .st{margin-left:auto;font-family:var(--mono);font-size:11px}
+  .st.running{color:var(--brand)} .st.done{color:var(--ok)} .st.failed{color:var(--bad)} .st.queued{color:var(--warn)}
+  code{font-family:var(--mono);background:var(--panel2);padding:1px 5px;border-radius:4px}
+  @media(max-width:720px){.grid,.grid3,.probes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="mark">МГТС <b>garak · AI-SEC</b></span>
+    <span class="spacer"></span>
+    <span class="sub"><span id="hDot" class="dot"></span>garak</span>
+  </header>
+
+  <div class="panel">
+    <div class="grid3">
+      <div><label>Operator/admin token</label><input id="token" type="password" placeholder="сырой токен"></div>
+      <div><label>API base</label><input id="apiBase" placeholder="(этот хост)"></div>
+      <div style="display:flex;align-items:end"><button id="connBtn" style="width:100%">Connect</button></div>
+    </div>
+    <div id="metaStatus" class="status"></div>
+  </div>
+
+  <!-- ===== Настройка скана ===== -->
+  <div class="panel">
+    <h2>Новый скан</h2>
+    <p class="hint">garak прогоняет батарею атак по мишени и оценивает, где модель «поплыла». Pass-rate ниже 100% = уязвимость сработала.</p>
+    <div class="grid">
+      <div class="field"><label>Мишень (пресет)</label><select id="preset"></select></div>
+      <div class="field"><label>Тип генератора</label>
+        <select id="ttype"><option value="rest">rest (приложение по URL)</option><option value="ollama">ollama (модель напрямую)</option></select>
+      </div>
+    </div>
+    <div class="field" id="uriField"><label>URI мишени (rest)</label><input id="uri" placeholder="http://vulnllm:8000/chat"></div>
+    <div class="grid">
+      <div class="field" id="fieldRf"><label>Поле ответа (rest)</label><input id="rfield" placeholder="reply (или $.reply в новых версиях)"></div>
+      <div class="field" id="fieldModel"><label>Модель (ollama) / метка</label><input id="model" placeholder="qwen2.5:7b"></div>
+    </div>
+    <label>Классы атак (probes)</label>
+    <div id="probes" class="probes"></div>
+    <div class="grid">
+      <div class="field"><label>Доп. probes (через запятую)</label><input id="extraProbes" placeholder="напр. grandma, continuation"></div>
+      <div class="field"><label>Попыток на probe (generations)</label><input id="gens" type="number" value="5" min="1" max="50"></div>
+    </div>
+    <div class="btn-row">
+      <button id="runBtn" onclick="startScan()">Запустить скан</button>
+      <span id="runStatus" class="status"></span>
+    </div>
+  </div>
+
+  <!-- ===== Результаты ===== -->
+  <div class="panel">
+    <h2>Сканы</h2>
+    <p class="hint">Клик по скану — открыть отчёт и лог. Активный скан обновляется автоматически.</p>
+    <div id="scanList"></div>
+    <div id="scanDetail"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let TOKEN="", API="", META=null, curScan=null, pollTimer=null;
+
+function base(){ return (API||$("apiBase").value||location.origin).replace(/\/$/,""); }
+
+async function api(path, opts){
+  const r=await fetch(base()+path, {...opts, headers:{"content-type":"application/json","x-api-key":TOKEN,...(opts?.headers||{})}});
+  const t=await r.text(); let d; try{d=JSON.parse(t)}catch{d={raw:t}}
+  if(!r.ok){ throw new Error(r.status===401?"Нужен токен (401)":r.status===403?("Отказано: "+(d.detail||"")):r.status===429?"Слишком часто (429)":(r.status+": "+(d.detail||d.raw||r.statusText))); }
+  return d;
+}
+
+$("connBtn").onclick=connect;
+async function connect(){
+  TOKEN=$("token").value.trim(); API=$("apiBase").value.trim();
+  const st=$("metaStatus"); st.className="status busy"; st.textContent="Подключаюсь…";
+  try{
+    const h=await fetch(base()+"/healthz").then(r=>r.json());
+    $("hDot").className="dot "+(h.status==="ok"?"up":"down");
+    META=await api("/v1/meta",{method:"GET"});
+    buildPresets(); buildProbes();
+    st.className="status"; st.textContent=(META.garak_installed?"garak готов":"⚠ garak не установлен в образе")+" · хосты: "+META.allowed_hosts.join(", ");
+    loadScans();
+  }catch(e){ $("hDot").className="dot down"; st.className="status err"; st.textContent=e.message; }
+}
+
+function buildPresets(){
+  const sel=$("preset"); sel.innerHTML="";
+  for(const [k,p] of Object.entries(META.presets)){
+    const o=document.createElement("option"); o.value=k; o.textContent=p.label; sel.appendChild(o);
+  }
+  const oc=document.createElement("option"); oc.value="custom"; oc.textContent="Custom (вручную)"; sel.appendChild(oc);
+  sel.onchange=applyPreset; applyPreset();
+}
+function applyPreset(){
+  const k=$("preset").value;
+  if(k==="custom"){ toggleType(); return; }
+  const p=META.presets[k];
+  $("ttype").value=p.target_type; $("uri").value=p.uri||""; $("rfield").value=p.response_field||"";
+  if(p.target_type==="ollama" && !$("model").value) $("model").value="qwen2.5:7b";
+  toggleType();
+}
+$("ttype").onchange=toggleType;
+function toggleType(){
+  const rest=$("ttype").value==="rest";
+  $("uriField").style.display=rest?"":"none";
+  $("fieldRf").style.display=rest?"":"none";
+}
+
+function buildProbes(){
+  $("probes").innerHTML=META.probes.map(p=>`
+    <label class="probe"><input type="checkbox" value="${esc(p.id)}" ${["promptinject","dan","encoding"].includes(p.id)?"checked":""}>
+      <span><span class="n">${esc(p.name)}</span><span class="chip">${esc(p.owasp)}</span><br><span class="d">${esc(p.desc)} · <code>${esc(p.id)}</code></span></span>
+    </label>`).join("");
+}
+
+async function startScan(){
+  const st=$("runStatus"); st.className="status busy"; st.textContent="Запускаю…";
+  const checked=[...document.querySelectorAll("#probes input:checked")].map(c=>c.value);
+  const extra=$("extraProbes").value.split(",").map(x=>x.trim()).filter(Boolean);
+  const body={ target_type:$("ttype").value, uri:$("uri").value.trim(),
+    model:$("model").value.trim(), response_field:$("rfield").value.trim()||"reply",
+    probes:[...checked,...extra], generations:parseInt($("gens").value)||5 };
+  try{
+    const d=await api("/v1/scan",{method:"POST",body:JSON.stringify(body)});
+    st.className="status"; st.textContent="Скан "+d.scan_id+" запущен.";
+    curScan=d.scan_id; loadScans(); openScan(d.scan_id); startPoll();
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
+}
+
+async function loadScans(){
+  try{
+    const d=await api("/v1/scans",{method:"GET"});
+    $("scanList").innerHTML=(d.scans||[]).map(s=>`
+      <div class="scan" onclick="openScan('${s.id}')">
+        <span class="sid">${esc(s.id)}</span>
+        <span style="color:var(--muted);font-size:12px">${esc(s.target)}</span>
+        <span class="st ${esc(s.status)}">${esc(s.status)}</span>
+      </div>`).join("") || `<div class="hint">Пока нет сканов.</div>`;
+  }catch(e){ /* silent */ }
+}
+
+async function openScan(sid){
+  curScan=sid;
+  try{
+    const s=await api("/v1/scan/"+sid,{method:"GET"});
+    const log=await api("/v1/scan/"+sid+"/log?tail=200",{method:"GET"});
+    let table="";
+    if((s.summary||[]).length){
+      table=`<table><thead><tr><th>probe</th><th>detector</th><th>pass-rate</th><th></th></tr></thead><tbody>`+
+        s.summary.map(r=>{
+          const rate=r.pass_rate==null?"—":r.pass_rate+"%";
+          const col=r.pass_rate==null?"var(--muted)":r.pass_rate>=90?"var(--ok)":r.pass_rate>=60?"var(--warn)":"var(--bad)";
+          const w=r.pass_rate==null?0:r.pass_rate;
+          return `<tr><td><code>${esc(r.probe)}</code></td><td>${esc(r.detector)}</td>
+            <td>${rate} <span style="color:var(--muted)">(${r.passed}/${r.total})</span></td>
+            <td><div class="bar"><span style="width:${w}%;background:${col}"></span></div></td></tr>`;
+        }).join("")+`</tbody></table>`;
+    } else if(s.status==="done"){
+      table=`<div class="hint">Структурированный отчёт пуст — см. лог ниже (возможно, иная версия garak; отчёт .report.jsonl во volume garak_data).</div>`;
+    }
+    $("scanDetail").innerHTML=`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <b>Скан ${esc(sid)}</b> · <span class="st ${esc(s.status)}">${esc(s.status)}</span>
+      ${s.returncode!=null?` · rc=${s.returncode}`:""} · <span style="color:var(--muted)">${esc(s.target)}</span>
+      ${s.error?`<div class="status err">${esc(s.error)}</div>`:""}
+      ${table}
+      <label style="margin-top:12px">Лог garak (хвост)</label>
+      <pre>${esc(log.log||"(пусто)")}</pre></div>`;
+  }catch(e){ $("scanDetail").innerHTML=`<div class="status err">${esc(e.message)}</div>`; }
+}
+
+function startPoll(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    await loadScans();
+    if(curScan){
+      const s=await api("/v1/scan/"+curScan,{method:"GET"}).catch(()=>null);
+      if(s){ openScan(curScan); if(s.status==="done"||s.status==="failed"){ clearInterval(pollTimer); pollTimer=null; } }
+    }
+  },4000);
+}
+
+// автозаполнение apiBase текущим origin
+$("apiBase").value=location.origin;
+</script>
+</body>
+</html>

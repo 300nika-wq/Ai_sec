@@ -36,6 +36,7 @@
 | misconfig | Мишень cloud | 3008 | build ./targets/misconfig-app |
 | mcppoison | Мишень ai/mcp | 3009 | build ./targets/mcp-poison |
 | webui | Веб-панель (nginx) | 8080 | docker-compose.webui.yml |
+| garak | LLM-сканер + панель (опц.) | 8030 | docker-compose.garak.yml |
 
 Внутри `labnet` мишени доступны сканеру по именам (`juiceshop`, `dvga`, `misconfig` …);
 на хосте — по `127.0.0.1:<порт>`.
@@ -349,6 +350,53 @@ pentest`). Проверка: `curl :8020/healthz` и `docker compose ... exec sa
   они эмулируют Ollama-клиента и ходят в `OLLAMA_URL`. Если оркестрацию вынесли
   на Алису и локальный Ollama больше не нужен для анализа — он всё ещё нужен этим
   двум мишеням (иначе они не работают; остальные 8 — работают без модели).
+
+---
+
+## 11b. garak — глубокий LLM-скан (отдельный стек + своя веб-панель)
+
+Оркестратор с 27 инструментами — это быстрые прозрачные пробы «понять руками».
+Для **автоматического аудита** LLM-мишени по батарее классов атак есть отдельный
+опциональный стек с [garak](https://github.com/NVIDIA/garak) (LLM-сканер NVIDIA)
+и собственной панелью. Держится **отдельно**, потому что garak тяжёлый
+(torch/transformers) — незачем раздувать основной образ.
+
+**Запуск (основной стенд должен быть уже поднят):**
+```bash
+docker compose -f docker-compose.lab.yml up -d
+docker compose -f docker-compose.garak.yml up -d --build   # первая сборка долгая
+```
+Панель: **http://127.0.0.1:8030** (нужен operator/admin-токен из `.env`).
+
+**Как пользоваться панелью.** Выбираете пресет мишени (`vulnllm`/`ragapp` по REST
+или `ollama` напрямую), отмечаете классы атак (prompt injection, jailbreak/DAN,
+encoding, indirect, training-data leak, XSS, malwaregen, package hallucination,
+toxicity, glitch), число попыток — и «Запустить скан». По завершении видите
+**pass-rate по каждому probe** (ниже 100% = уязвимость сработала), лог и полный
+отчёт `*.report.jsonl` в томе `garak_data`.
+
+**Как устроено / предохранители:**
+- garak подключается к сети стенда `labnet` (external), ходит к мишеням по именам
+  (`vulnllm:8000`, `ragapp:8000`, `ollama:11434`).
+- **Allowlist хостов** `GARAK_ALLOWED_HOSTS` (по умолчанию только мишени стенда) —
+  из браузера нельзя натравить garak на произвольный URL.
+- Та же аутентификация по токену, аудит (`garak_scan_*`), rate-limit, запуск
+  строго списком аргументов, валидация probe-имён.
+- Панель и API — на `127.0.0.1:8030`, наружу не публикуются.
+
+**Важные операционные нюансы:**
+- **Первый прогон некоторых probe тянет модели детекторов с HuggingFace** — нужен
+  egress в интернет; кэш складывается в том `garak_data` (переживает рестарт).
+  Часть probe работает офлайн.
+- Флаги garak между версиями меняются — команда собирается в одном месте
+  (`garak/app/main.py::_build_cmd`); если версия garak иная и CLI ругается, правьте
+  там (полный лог виден в панели). По умолчанию `response_json_field=reply`; в
+  новых garak может понадобиться JSONPath — укажите `$.reply` в поле панели.
+- Скан на локальной модели идёт долго (тысячи запросов) — начинайте с 1-2 probe
+  и `generations=3-5`.
+
+**Остановить/удалить:** `docker compose -f docker-compose.garak.yml down`
+(том `garak_data` с кэшем и отчётами сохранится; `down -v` — удалит).
 
 ---
 
