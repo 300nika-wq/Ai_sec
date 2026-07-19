@@ -10,29 +10,18 @@ services:
     restart: unless-stopped
     networks: [ labnet ]
 
-  sanitizer:
-    build: ./shared/sanitizer
-    env_file: [ .env ]
-    environment:
-      AUDIT_LOG: /data/audit/sanitizer.log
-    volumes: [ "audit:/data/audit" ]
-    security_opt: [ "no-new-privileges:true" ]
-    read_only: true
-    tmpfs: [ /tmp ]
-    networks: [ labnet ]
-
   pentest:
     build: ./pentest
     env_file: [ .env ]
     environment:
-      SANITIZER_URL: http://sanitizer:8000
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      LOCAL_MODEL: ${LOCAL_MODEL:-qwen2.5:7b}
       ENGAGEMENT_FILE: /engagement/engagement.lab.yml
       LAB_TARGETS_FILE: /engagement/targets.lab.yml
       AUDIT_LOG: /data/audit/pentest.log
     volumes:
       - "audit:/data/audit"
       - "./engagement:/engagement:ro"
-    depends_on: [ sanitizer ]
     security_opt: [ "no-new-privileges:true" ]
     ports: [ "127.0.0.1:8020:8020" ]
     networks: [ labnet ]

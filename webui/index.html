@@ -173,16 +173,11 @@
   <header>
     <span class="mark">МГТС <b style="color:var(--color-text-primary);font-family:var(--font-compact);font-weight:500;font-size:15px">AI-SEC Console</b></span>
     <span class="spacer"></span>
-    <span class="sub"><span id="soarDot" class="env-dot"></span>soar</span>
     <span class="sub"><span id="pentDot" class="env-dot"></span>pentest</span>
   </header>
 
   <!-- connection settings -->
   <div class="settings">
-    <div>
-      <label>SOAR URL</label>
-      <input id="soarUrl" value="http://127.0.0.1:8010">
-    </div>
     <div>
       <label>Pentest URL</label>
       <input id="pentUrl" value="http://127.0.0.1:8020">
@@ -197,45 +192,21 @@
   </div>
 
   <nav class="tabs">
-    <button id="tabSoar" class="active" onclick="showTab('soar')">Incident triage</button>
-    <button id="tabPent" onclick="showTab('pent')">Pentest loop</button>
+    <button id="tabPent" class="active" onclick="showTab('pent')">Pentest loop</button>
     <button id="tabLab" onclick="showTab('lab')">Lab dashboard</button>
     <button id="tabArsenal" onclick="showTab('arsenal')">Arsenal</button>
   </nav>
 
-  <!-- ===== SOAR ===== -->
-  <section id="soar" class="panel">
-    <h2>Incident triage</h2>
-    <p class="hint">Отправьте инцидент — получите оценку и шаги реагирования от локальной модели.</p>
-    <div class="grid2">
-      <div class="field"><label>Incident ID</label><input id="incId" value="INC-42"></div>
-      <div class="field"><label>Source</label>
-        <select id="incSrc"><option>EDR</option><option>SIEM</option><option>Firewall</option><option>IDS</option><option>Other</option></select>
-      </div>
-    </div>
-    <div class="field"><label>Title</label><input id="incTitle" value="Подозрительный PowerShell"></div>
-    <div class="field"><label>Raw (лог / описание)</label>
-      <textarea id="incRaw">хост WKS-17 (10.0.4.17), пользователь ivanov, запущен encoded PowerShell с обращением к внешнему IP 198.51.100.23</textarea>
-    </div>
-    <div class="btn-row">
-      <button onclick="advise()">Get recommendation</button>
-      <label class="row-check"><input type="checkbox" id="incExt"> обогатить внешним ИИ (обезличенно)</label>
-    </div>
-    <div id="soarStatus" class="status"></div>
-    <div id="soarOut" class="out"></div>
-  </section>
-
   <!-- ===== PENTEST ===== -->
-  <section id="pent" class="panel" style="display:none">
+  <section id="pent" class="panel">
     <h2>Pentest loop</h2>
-    <p class="hint">Модель предлагает шаг → вы подтверждаете → запускается сканер в рамках scope. Вывод разбирается и подаётся в следующий шаг.</p>
+    <p class="hint">Модель предлагает шаг → вы подтверждаете → запускается сканер в рамках scope. Вывод разбирается локальной моделью и подаётся в следующий шаг.</p>
     <div class="field"><label>Objective</label>
       <input id="objective" value="разведка внешнего периметра">
     </div>
     <div class="btn-row">
       <button onclick="planStep()">Propose step</button>
       <button class="ghost" onclick="genReport()">Отчёт: превью + .md</button>
-      <label class="row-check"><input type="checkbox" id="analyzeExt"> разбирать вывод внешним ИИ (обезличенно)</label>
       <span class="step-meta" id="sessLbl"></span>
     </div>
     <div class="btn-row" style="margin-top:8px">
@@ -277,38 +248,15 @@
     </details>
 
     <details id="llmEditor" class="card" style="margin-top:10px">
-      <summary style="cursor:pointer;color:var(--accent);font-weight:600">Настройки ИИ: адрес модели и маршрут (нужен admin-токен)</summary>
+      <summary style="cursor:pointer;color:var(--accent);font-weight:600">Настройки ИИ: адрес Ollama и модель (нужен admin-токен)</summary>
       <div id="llmState" class="kv" style="margin:10px 0"></div>
-      <div class="grid2">
-        <div class="field"><label>Маршрут по умолчанию</label>
-          <select id="llmRoute">
-            <option value="local">local (локальная модель)</option>
-            <option value="external">external (внешний ИИ через санитайзер)</option>
-          </select>
-        </div>
-        <div class="field"><label>Локальная модель (Ollama)</label>
-          <input id="llmLocalModel" placeholder="qwen2.5:7b"></div>
-      </div>
       <div class="field"><label>Адрес Ollama (можно другой сервер)</label>
         <input id="llmOllamaUrl" placeholder="http://ollama:11434"></div>
-      <div class="divider"></div>
-      <p class="kv" style="margin:0 0 8px">Внешний ИИ (нужен ключ в <code>.env</code>; <b>ALLOW_EXTERNAL</b> тоже только в <code>.env</code>):</p>
-      <div class="grid2">
-        <div class="field"><label>Провайдер</label>
-          <select id="llmProvider">
-            <option value="anthropic">anthropic</option>
-            <option value="yandex">yandex (Алиса/YandexGPT)</option>
-            <option value="openai">openai-совместимый</option>
-          </select>
-        </div>
-        <div class="field"><label>Внешняя модель</label>
-          <input id="llmExtModel" placeholder="yandexgpt/latest"></div>
-      </div>
-      <div class="field"><label>Внешний URL (пусто = по умолчанию провайдера)</label>
-        <input id="llmExtUrl" placeholder="https://llm.api.cloud.yandex.net/foundationModels/v1/completion"></div>
+      <div class="field"><label>Локальная модель</label>
+        <input id="llmLocalModel" placeholder="qwen2.5:7b"></div>
       <div class="btn-row">
         <button onclick="saveLlm()">Сохранить настройки ИИ</button>
-        <span class="kv">Изменения в памяти; перезапуск сервисов вернёт к .env.</span>
+        <span class="kv">Изменения в памяти; перезапуск pentest вернёт к .env.</span>
       </div>
     </details>
 
@@ -347,7 +295,6 @@
       <button class="ghost af" data-f="passive" onclick="filterArsenal('passive',this)">passive</button>
       <button class="ghost af" data-f="safe-active" onclick="filterArsenal('safe-active',this)">safe-active</button>
       <button class="ghost af" data-f="full" onclick="filterArsenal('full',this)">full</button>
-      <label class="row-check" style="margin-left:auto"><input type="checkbox" id="arsExt"> разбирать вывод внешним ИИ</label>
     </div>
     <div id="arsList"></div>
     <div id="arsStatus" class="status"></div>
@@ -358,25 +305,23 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const cfg = { soar:"", pent:"", token:"" };
+const cfg = { pent:"", token:"" };
 
 // сессия хранится только на время вкладки браузера
 function loadCfg(){
-  cfg.soar = sessionStorage.getItem("soarUrl") || $("soarUrl").value;
   cfg.pent = sessionStorage.getItem("pentUrl") || $("pentUrl").value;
   cfg.token = sessionStorage.getItem("token") || "";
-  $("soarUrl").value = cfg.soar; $("pentUrl").value = cfg.pent; $("token").value = cfg.token;
+  $("pentUrl").value = cfg.pent; $("token").value = cfg.token;
 }
 $("saveBtn").onclick = () => {
-  cfg.soar=$("soarUrl").value.trim(); cfg.pent=$("pentUrl").value.trim(); cfg.token=$("token").value.trim();
-  sessionStorage.setItem("soarUrl",cfg.soar); sessionStorage.setItem("pentUrl",cfg.pent);
+  cfg.pent=$("pentUrl").value.trim(); cfg.token=$("token").value.trim();
+  sessionStorage.setItem("pentUrl",cfg.pent);
   sessionStorage.setItem("token",cfg.token);
   pingHealth();
 };
 
 function showTab(t){
-  for(const s of ["soar","pent","lab","arsenal"]) $(s).style.display = (s===t)?"block":"none";
-  $("tabSoar").classList.toggle("active",t==="soar");
+  for(const s of ["pent","lab","arsenal"]) $(s).style.display = (s===t)?"block":"none";
   $("tabPent").classList.toggle("active",t==="pent");
   $("tabLab").classList.toggle("active",t==="lab");
   $("tabArsenal").classList.toggle("active",t==="arsenal");
@@ -402,40 +347,14 @@ async function api(base, path, opts){
 }
 
 async function pingHealth(){
-  for(const [dot,base] of [["soarDot",cfg.soar||$("soarUrl").value],["pentDot",cfg.pent||$("pentUrl").value]]){
-    try{ const r = await fetch(base+"/healthz"); $(dot).className="env-dot "+(r.ok?"up":"down"); }
-    catch{ $(dot).className="env-dot down"; }
-  }
+  const base=cfg.pent||$("pentUrl").value;
+  try{ const r = await fetch(base+"/healthz"); $("pentDot").className="env-dot "+(r.ok?"up":"down"); }
+  catch{ $("pentDot").className="env-dot down"; }
 }
 
 function sevBadge(s){ s=(s||"info").toLowerCase(); return `<span class="badge sev-${s}">${s}</span>`; }
 function list(items){ return (items&&items.length)? "<ul>"+items.map(i=>`<li>${esc(i)}</li>`).join("")+"</ul>" : `<span class="kv">—</span>`; }
 function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
-
-/* ---------- SOAR ---------- */
-async function advise(){
-  const st=$("soarStatus"); st.className="status busy"; st.textContent="Анализирую инцидент…";
-  $("soarOut").innerHTML="";
-  try{
-    const d = await api(cfg.soar||$("soarUrl").value, "/v1/advise", {method:"POST", body:JSON.stringify({
-      incident_id:$("incId").value, source:$("incSrc").value, title:$("incTitle").value,
-      raw:$("incRaw").value, enrich_external:$("incExt").checked
-    })});
-    const a = d.advice||{};
-    let html = `<div class="card"><h3><span>${esc(a.summary||"—")}</span> ${sevBadge(a.severity)}</h3>
-      <div class="kv">confidence: <b>${esc(a.confidence||"—")}</b> · route: <b>${esc(d.route)}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
-      ${(a.mitre&&a.mitre.length)?`<div style="margin-top:8px">${a.mitre.map(m=>`<span class="chip">${esc(m)}</span>`).join("")}</div>`:""}
-    </div>
-    <div class="grid2">
-      <div class="card"><h3>Немедленные действия</h3>${list(a.immediate_actions)}</div>
-      <div class="card"><h3>Сдерживание</h3>${list(a.containment)}</div>
-      <div class="card"><h3>Что проверить</h3>${list(a.investigation)}</div>
-      <div class="card"><h3>Признаки ложного срабатывания</h3>${list(a.false_positive_signs)}</div>
-    </div>`;
-    if(a.external_enrichment){ html+=`<div class="card"><h3>Обогащение (внешний ИИ)</h3><pre>${esc(JSON.stringify(a.external_enrichment,null,2))}</pre></div>`; }
-    $("soarOut").innerHTML=html; st.className="status"; st.textContent="Готово.";
-  }catch(e){ st.className="status err"; st.textContent=e.message; }
-}
 
 /* ---------- PENTEST ---------- */
 let sessionId=null, lastOutput=null, currentStepId=null;
@@ -479,7 +398,7 @@ async function approve(ok){
   st.className="status busy"; st.textContent= ok?"Запускаю инструмент…":"Отклоняю шаг…";
   try{
     const d = await api(cfg.pent||$("pentUrl").value, "/v1/approve", {method:"POST", body:JSON.stringify({
-      step_id:currentStepId, approved:ok, analyze_route:$("analyzeExt").checked?"external":"local"
+      step_id:currentStepId, approved:ok
     })});
     if(d.status==="rejected_by_human"){ st.className="status"; st.textContent="Шаг отклонён."; return; }
     renderResult(d);
@@ -496,7 +415,7 @@ function renderResult(d){
       <div class="kv"><b>Рекомендация:</b> ${esc(f.recommendation||"—")}</div>
     </div>`).join("") || `<div class="kv">Модель не выделила находок.</div>`;
   $("pentOut").insertAdjacentHTML("beforeend", `<div class="divider"></div>
-    <div class="kv">rc: <b>${tr.returncode}</b> · analyze: <b>${esc(d.analyze_route||"local")}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
+    <div class="kv">rc: <b>${tr.returncode}</b></div>
     <pre>${esc(tr.stdout||"(пусто)")}${tr.stderr?("\n--- stderr ---\n"+esc(tr.stderr)):""}</pre>
     <h3 style="margin:16px 0 0;font-size:13.5px">Разбор</h3>
     ${findings}
@@ -622,20 +541,11 @@ async function saveScope(){
 async function loadLlm(){
   try{
     const d=await api(cfg.pent||$("pentUrl").value, "/v1/llm/config", {method:"GET"});
-    const s=d.sanitizer||{};
-    const ext = s.allow_external ? "внешний РАЗРЕШЁН" : "внешний ВЫКЛ (ALLOW_EXTERNAL=false)";
-    const keys = [s.external_api_key_set?"ключ есть":"ключа нет",
-                  s.yandex_folder_set?"folder есть":""].filter(Boolean).join(", ");
-    $("llmState").innerHTML=`Маршрут по умолчанию: <b>${esc(d.default_route)}</b> · ${esc(ext)}`+
-      (keys?` · <span class="kv">${esc(keys)}</span>`:"");
+    $("llmState").innerHTML=`Ollama: <b>${esc(d.ollama_url||"—")}</b> · модель: <b>${esc(d.local_model||"—")}</b>`;
     const ed=$("llmEditor");
     if(ed && !ed.open){
-      $("llmRoute").value=d.default_route||"local";
-      $("llmLocalModel").value=s.local_model||"";
-      $("llmOllamaUrl").value=s.ollama_url||"";
-      $("llmProvider").value=s.provider||"anthropic";
-      $("llmExtModel").value=s.external_model||"";
-      $("llmExtUrl").value=s.external_url||"";
+      $("llmOllamaUrl").value=d.ollama_url||"";
+      $("llmLocalModel").value=d.local_model||"";
     }
   }catch(e){ $("llmState").textContent="Настройки ИИ недоступны: "+e.message; }
 }
@@ -643,12 +553,8 @@ async function loadLlm(){
 async function saveLlm(){
   const st=$("labStatus"); st.className="status busy"; st.textContent="Сохраняю настройки ИИ…";
   try{
-    const body={ default_route:$("llmRoute").value,
-                 local_model:$("llmLocalModel").value.trim(),
-                 ollama_url:$("llmOllamaUrl").value.trim(),
-                 provider:$("llmProvider").value,
-                 external_model:$("llmExtModel").value.trim(),
-                 external_url:$("llmExtUrl").value.trim() };
+    const body={ ollama_url:$("llmOllamaUrl").value.trim(),
+                 local_model:$("llmLocalModel").value.trim() };
     const r=await api(cfg.pent||$("pentUrl").value, "/v1/llm/config", {method:"PUT", body:JSON.stringify(body)});
     st.className="status"; st.textContent="Настройки ИИ обновлены (в памяти). "+(r.note||"");
     $("llmEditor").open=false; loadLlm();
@@ -776,8 +682,7 @@ async function runTool(name){
   const st=$("arsStatus");
   const target=($("t_"+name)?.value||"").trim();
   if(!target){ st.className="status err"; st.textContent="Укажите цель для "+name; return; }
-  const body={tool:name, target:target, session_id:sessionId,
-              analyze_route:$("arsExt").checked?"external":"local"};
+  const body={tool:name, target:target, session_id:sessionId};
   if($("p_"+name)) body.ports=$("p_"+name).value.trim();
   if($("w_"+name)) body.wordlist=$("w_"+name).value;
   if($("pr_"+name)) body.probe=$("pr_"+name).value;
@@ -792,7 +697,7 @@ async function runTool(name){
         <div class="kv"><b>Evidence:</b> ${esc(f.evidence||"—")}</div>
         <div class="kv"><b>Рекомендация:</b> ${esc(f.recommendation||"—")}</div>
       </div>`).join("") || `<div class="kv">Модель не выделила находок.</div>`;
-    $("arsOut").innerHTML=`<div class="kv">rc: <b>${tr.returncode}</b> · analyze: <b>${esc(d.analyze_route||"local")}</b>${d.masked_terms?` · замаскировано: <b>${d.masked_terms}</b>`:""}</div>
+    $("arsOut").innerHTML=`<div class="kv">rc: <b>${tr.returncode}</b></div>
       <pre>${esc(tr.stdout||"(пусто)")}${tr.stderr?("\n--- stderr ---\n"+esc(tr.stderr)):""}</pre>
       <h3 style="margin:14px 0 0;font-size:13.5px">Разбор</h3>${findings}`;
     st.className="status"; st.textContent="Готово. Результат записан в сессию — доступен в отчёте.";

@@ -10,9 +10,12 @@
 
 Полигон — это docker-стек из трёх функциональных слоёв:
 
-1. **Оркестрация (контур пентеста):** сервис `pentest` + `sanitizer` + `ollama`.
+1. **Оркестрация:** сервис `pentest` (ходит в `ollama` **напрямую**) — стек
+   самодостаточный, без внешних сервисов.
 2. **Мишени:** 10 намеренно уязвимых приложений в изолированной сети `labnet`.
 3. **Интерфейсы доступа:** веб-панель (`webui`, отдельный compose) и CLI (`aisec.py`).
+
+Опционально — отдельный стек `garak` (LLM-сканер, `docker-compose.garak.yml`).
 
 Все порты слушаются только на `127.0.0.1`. Наружу хоста по умолчанию ничего не торчит.
 
@@ -23,8 +26,7 @@
 | Сервис | Роль | Порт (хост) | Источник |
 |---|---|---|---|
 | ollama | Локальная LLM (движок инференса) | — (внутр. 11434) | образ ollama/ollama |
-| sanitizer | Маскировка/роутер к моделям | — (внутр. 8000) | build ./shared/sanitizer |
-| pentest | Оркестратор + API | 8020 | build ./pentest |
+| pentest | Оркестратор + API (ходит в ollama напрямую) | 8020 | build ./pentest |
 | juiceshop | Мишень web | 3000 | bkimminich/juice-shop |
 | dvwa | Мишень web | 3001 | vulnerables/web-dvwa |
 | webgoat | Мишень web (уроки) | 3002 | webgoat/webgoat |
@@ -60,13 +62,13 @@ webui/mgts/                     # дизайн-система (токены + ш
 ```
 
 Тома Docker: `ollama_models` (скачанная модель), `audit` (журналы действий).
+Опциональный стек garak: `garak/` (сервис + панель), `docker-compose.garak.yml`.
 
 ---
 
 ## 4. Первичное развёртывание
 
 ```bash
-unzip ai-security-stack.zip && cd ai-security-stack
 cp .env.example .env
 ```
 
@@ -76,15 +78,13 @@ python3 -c "import hashlib,secrets;t=secrets.token_urlsafe(32);print('token:',t)
 ```
 ```ini
 API_KEYS=admin:<sha256_admin>,operator:<sha256_operator>
-SANITIZER_SERVICE_KEY=<сырой operator-token>
-LOCAL_MODEL=qwen2.5:32b        # или qwen2.5:7b при нехватке памяти
-ALLOW_EXTERNAL=false
+LOCAL_MODEL=qwen2.5:7b         # или qwen2.5:3b при нехватке памяти
 ```
 
 Поднимите стек и скачайте модель:
 ```bash
 docker compose -f docker-compose.lab.yml up -d --build
-docker compose -f docker-compose.lab.yml exec ollama ollama pull qwen2.5:32b
+docker compose -f docker-compose.lab.yml exec ollama ollama pull qwen2.5:7b
 docker compose -f docker-compose.webui.yml up -d
 ```
 
@@ -99,15 +99,14 @@ curl http://127.0.0.1:8020/healthz     # engagement: LAB-TRAINING, max_intensity
 
 Аутентификация — по API-ключу (`x-api-key`). Формат в `API_KEYS`: `role:sha256(token)`.
 
-- **admin** — полный доступ operator + ручное изменение scope в рантайме (`PUT /v1/scope`).
+- **admin** — полный доступ operator + ручное изменение scope, адреса мишеней и
+  настроек модели в рантайме (`PUT /v1/scope`, `/v1/lab/targets/{name}`, `/v1/llm/config`).
 - **operator** — запуск инструментов, планирование, отчёты, чтение scope/аудита.
 - **viewer** — предусмотрен в коде, но эндпоинтам сейчас нужен operator/admin.
 
-Сервисы ходят друг к другу под `SANITIZER_SERVICE_KEY` (сырой operator-токен).
-
-**Ротация ключей:** сгенерируйте новые токены, обновите `API_KEYS` и
-`SANITIZER_SERVICE_KEY` в `.env`, пересоздайте сервисы:
-`docker compose -f docker-compose.lab.yml up -d`. Старые токены сразу инвалидируются.
+**Ротация ключей:** сгенерируйте новые токены, обновите `API_KEYS` в `.env`,
+пересоздайте сервис: `docker compose -f docker-compose.lab.yml up -d`. Старые
+токены сразу инвалидируются.
 
 ---
 
@@ -276,10 +275,12 @@ docker compose -f docker-compose.lab.yml up -d --force-recreate ragapp
 
 ## 11. Модель: полегче или на отдельном сервере
 
-Модель нужна **дважды**: оркестратору (предлагает шаги, разбирает вывод) и трём
-ИИ-мишеням (`vulnllm`, `ragapp` — сами являются LLM-приложениями). Все читают
-**единую точку** `OLLAMA_URL` и `LOCAL_MODEL` из `.env`. Остальные 7 мишеней
-модель не используют.
+Модель нужна оркестратору (предлагает шаги, разбирает вывод) и двум ИИ-мишеням
+(`vulnllm`, `ragapp` — сами являются LLM-приложениями). Все читают `OLLAMA_URL` и
+`LOCAL_MODEL` из `.env`. Остальные 8 мишеней модель не используют.
+
+Адрес Ollama и модель можно поменять и **на лету в панели** (Lab dashboard →
+«Настройки ИИ», нужен admin-токен) — удобно, чтобы указать Ollama на другом сервере.
 
 **Не хватает мощности — модель полегче (проще всего):**
 ```ini
@@ -289,7 +290,7 @@ LOCAL_MODEL=qwen2.5:7b          # ~8-12 ГБ; или llama3.1:8b
 ```
 ```bash
 docker compose -f docker-compose.lab.yml exec ollama ollama pull qwen2.5:7b
-docker compose -f docker-compose.lab.yml restart pentest sanitizer vulnllm ragapp
+docker compose -f docker-compose.lab.yml restart pentest vulnllm ragapp
 ```
 И оркестратор, и ИИ-мишени возьмут новую модель — переключение одной строкой.
 
@@ -324,62 +325,17 @@ LLM-приложения) — им нужен Ollama-совместимый эн
 (web, API, сеть, GraphQL, misconfig, mcppoison) работают без модели. Движок,
 отличный от Ollama, подойдёт мишеням только если эмулирует Ollama API (`/api/chat`).
 
-**Важно про ИИ-мишени и облачный API.** Внешний коммерческий ИИ (`ALLOW_EXTERNAL`)
-подключён только к оркестратору через санитайзер. Мишени `vulnllm`/`ragapp` умеют
-ходить лишь в Ollama-совместимый эндпоинт — им в любом случае нужен доступный
-Ollama (локальный или внешний). Без него эти две мишени не работают; остальные 8 —
-работают.
+> Стек самодостаточный: `pentest` вызывает Ollama напрямую, без промежуточных
+> сервисов. Внешний коммерческий ИИ в этой сборке не используется — весь разбор
+> идёт локальной моделью, данные не покидают стенд.
 
 ---
 
-## 11a. Внешний ИИ по умолчанию (Алиса / YandexGPT и др.)
+## 11a. Смена адреса модели из панели
 
-**Быстрее всего — из веб-панели.** Вкладка **Lab dashboard → «Настройки ИИ:
-адрес модели и маршрут»** (нужен admin-токен). Там из браузера меняются: маршрут
-по умолчанию (`local`/`external`), **адрес Ollama** (можно указать другой сервер),
-локальная модель, а для внешнего ИИ — провайдер / URL / модель. Изменения — в
-памяти процесса (перезапуск сервисов возвращает к `.env`). Секреты (`API_KEY`) и
-жёсткий рубильник `ALLOW_EXTERNAL` из браузера НЕ меняются — только через `.env`.
-Под капотом панель ходит в `pentest` (`PUT /v1/llm/config`), а он проксирует
-параметры модели в санитайзер — сам санитайзер наружу не публикуется.
-
-**Постоянно / из `.env`.** Разбор вывода и оркестрацию (планирование шагов в
-pentest, разбор инцидента в soar) можно по умолчанию направить во **внешний ИИ** —
-но строго **через санитайзер**: перед отправкой наружу маскируются
-IP/хосты/e-mail/секреты, а ответ размаскировывается обратно. Ключи и рубильник —
-только в `.env` (compose пробрасывает переменные в `sanitizer`, `pentest`, `soar`):
-
-```ini
-ALLOW_EXTERNAL=true                 # снять жёсткий рубильник наружу
-DEFAULT_ROUTE=external              # по умолчанию разбор/оркестрация — внешним ИИ
-EXTERNAL_PROVIDER=yandex            # anthropic | yandex | openai
-EXTERNAL_URL=https://llm.api.cloud.yandex.net/foundationModels/v1/completion
-EXTERNAL_MODEL=yandexgpt/latest     # или yandexgpt-lite/latest, либо gpt://<folder>/<model>
-EXTERNAL_API_KEY=<Api-Key сервисного аккаунта Yandex Cloud>
-YANDEX_FOLDER_ID=<b1g... id каталога>
-```
-Затем: `docker compose -f docker-compose.lab.yml up -d` (или `restart sanitizer
-pentest`). Проверка: `curl :8020/healthz` и `docker compose ... exec sanitizer` →
-у санитайзера `GET /healthz` покажет `provider` и `external_model`.
-
-- **Где взять доступ к «Алисе».** «Алиса» как API — это **YandexGPT** в Yandex
-  Cloud (Foundation Models). Нужны: каталог (`folder id`, вид `b1g…`), сервисный
-  аккаунт с ролью `ai.languageModels.user` и его **Api-Key**. `modelUri`
-  собирается автоматически из `YANDEX_FOLDER_ID` + `EXTERNAL_MODEL`, либо задайте
-  целиком (`EXTERNAL_MODEL=gpt://<folder>/yandexgpt/latest`).
-- **Провайдеры.** `EXTERNAL_PROVIDER=anthropic` (Claude), `yandex` (Алиса),
-  `openai` (любой OpenAI-совместимый эндпоинт, в т.ч. RU-прокси). Формат запроса
-  под каждый — внутри санитайзера, менять код не нужно.
-- **Точечно, не по умолчанию.** Можно оставить `DEFAULT_ROUTE=local`, а внешний
-  ИИ включать галочкой «разбирать вывод внешним ИИ» в панели/CLI per-request.
-- **Что уходит наружу.** Только обезличенный текст. НО: PII-детект Presidio
-  настроен на английский — русские ФИО/телефоны он ловит хуже; сетевые артефакты
-  и секреты маскируются регексами независимо от языка. Это снижение риска, а не
-  гарантия. Используйте только тариф с Zero-Data-Retention и opt-out обучения.
-- **ИИ-мишени — отдельно.** `vulnllm`/`ragapp` на внешний ИИ НЕ переключаются:
-  они эмулируют Ollama-клиента и ходят в `OLLAMA_URL`. Если оркестрацию вынесли
-  на Алису и локальный Ollama больше не нужен для анализа — он всё ещё нужен этим
-  двум мишеням (иначе они не работают; остальные 8 — работают без модели).
+Адрес Ollama и имя модели меняются на лету: **Lab dashboard → «Настройки ИИ»**
+(нужен admin-токен). Можно указать Ollama на другом сервере. Изменения — в памяти
+(перезапуск pentest возвращает к `.env`). Эндпоинт: `PUT /v1/llm/config`.
 
 ---
 
@@ -435,7 +391,7 @@ toxicity, glitch), число попыток — и «Запустить ска�
 - **Обновление образов мишеней:**
   `docker compose -f docker-compose.lab.yml pull` затем `up -d`.
 - **Смена локальной модели:** поменяйте `LOCAL_MODEL` в `.env`, затем
-  `ollama pull <model>` и `restart pentest sanitizer`.
+  `ollama pull <model>` и `restart pentest` (или на лету в панели → «Настройки ИИ»).
 - **Аудит-журналы** в томе `audit` (`/data/audit/*.log`). Для долгого хранения
   пересылайте в SIEM или периодически архивируйте том.
 - **Резервная копия конфигурации:** достаточно сохранить `.env`, `engagement/`,
@@ -454,11 +410,10 @@ toxicity, glitch), число попыток — и «Запустить ска�
 - `metasploitable` особенно «злая» мишень (реально уязвимые сервисы) — держите её
   строго в `labnet`.
 - Секреты только в `.env` (вне git). Не коммитьте реальные токены.
-- Внешний ИИ по умолчанию выключен (`ALLOW_EXTERNAL=false`); включайте только с
-  тарифом Zero-Data-Retention и понимая, что уходит наружу (санитайзер маскирует
-  IP/ПДн/секреты, но это снижение риска, а не гарантия).
+- Стек самодостаточный и работает офлайн: `pentest` вызывает Ollama напрямую,
+  данные не покидают стенд. Внешний коммерческий ИИ в этой сборке не используется.
 
-Предохранители контура (не зависят от модели): проверка scope, allowlist
+Предохранители (не зависят от модели): проверка scope, allowlist
 инструментов, запрет произвольного shell, подтверждение оператором, аудит.
 
 ---
@@ -490,8 +445,8 @@ toxicity, glitch), число попыток — и «Запустить ска�
 | GET | /v1/tools | Список инструментов allowlist |
 | GET | /v1/scope | Активный scope |
 | PUT | /v1/scope | Ручное изменение scope в рантайме (**только admin**) |
-| GET | /v1/llm/config | Текущие настройки ИИ (маршрут, адрес/модель Ollama, провайдер) |
-| PUT | /v1/llm/config | Изменение настроек ИИ из панели (**только admin**) |
+| GET | /v1/llm/config | Текущие адрес Ollama и модель |
+| PUT | /v1/llm/config | Изменить адрес Ollama / модель (**только admin**) |
 | GET | /v1/lab/targets | Мишени + статус + учебные цели |
 | PUT | /v1/lab/targets/{name} | Изменить адрес мишени host/port/url (**только admin**) |
 | GET | /v1/audit?limit=N | Последние записи аудита |
@@ -506,7 +461,7 @@ toxicity, glitch), число попыток — и «Запустить ска�
 - [ ] `docker compose -f docker-compose.lab.yml ps` — все сервисы Up
 - [ ] `curl :8020/healthz` — engagement LAB-TRAINING
 - [ ] мишени с состоянием сброшены (`ragapp`, при необходимости `dvwa`)
-- [ ] веб-панель открывается, точки soar/pentest зелёные
+- [ ] веб-панель открывается, точка pentest зелёная
 - [ ] у обучающихся есть operator-токен
 - [ ] (опц.) аудит-журнал очищен/заархивирован от прошлой сессии
 

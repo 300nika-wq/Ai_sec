@@ -41,7 +41,6 @@ docker compose -f docker-compose.webui.yml up -d      # http://127.0.0.1:8080
 ```
 Впишите operator-токен -> Connect. Три вкладки:
 
-- **Incident triage** — SOAR-разбор инцидента.
 - **Pentest loop** — цикл предложение -> approve -> скан -> находки.
 - **Lab dashboard** — новое: активный scope, все мишени со статусом up/down и
   кнопкой «Открыть», плюс живой журнал действий (авто-обновление раз в 5 сек).
