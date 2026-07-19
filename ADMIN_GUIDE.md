@@ -98,7 +98,7 @@ curl http://127.0.0.1:8020/healthz     # engagement: LAB-TRAINING, max_intensity
 
 Аутентификация — по API-ключу (`x-api-key`). Формат в `API_KEYS`: `role:sha256(token)`.
 
-- **admin** — полный доступ (то же, что operator; зарезервировано под будущее разделение).
+- **admin** — полный доступ operator + ручное изменение scope в рантайме (`PUT /v1/scope`).
 - **operator** — запуск инструментов, планирование, отчёты, чтение scope/аудита.
 - **viewer** — предусмотрен в коде, но эндпоинтам сейчас нужен operator/admin.
 
@@ -158,6 +158,24 @@ excluded: []               # что не трогать никогда
 
 Проверка активного scope: `GET http://127.0.0.1:8020/v1/scope` (с operator-токеном)
 или вкладка Lab dashboard.
+
+**Ручное изменение scope без перезапуска (admin).** Для быстрой правки прямо во
+время занятия есть `PUT /v1/scope` — меняет `allowed_hosts` / `excluded` /
+`max_intensity` в памяти процесса. Доступно **только под admin-токеном** (это
+предохранитель — операторам менять границы нельзя). Каждое изменение пишется в
+аудит (`scope_updated`). Файл `engagement.lab.yml` остаётся источником истины:
+перезапуск `pentest` возвращает scope к файлу — то есть рантайм-правка временная.
+
+- В панели: вкладка **Lab dashboard → «Изменить scope вручную»** (нужен admin-токен
+  в поле Operator token).
+- Из консоли (передавайте только изменяемые поля):
+  ```bash
+  curl -X PUT http://127.0.0.1:8020/v1/scope \
+    -H "x-api-key: <admin-token>" -H "content-type: application/json" \
+    -d '{"max_intensity":"safe-active","allowed_hosts":["juiceshop","dvwa"]}'
+  ```
+
+Постоянное изменение — по-прежнему через правку `engagement.lab.yml` + restart.
 
 ---
 
@@ -219,12 +237,19 @@ docker compose -f docker-compose.lab.yml up -d --force-recreate ragapp
 ```ini
 # .env
 LOCAL_MODEL=qwen2.5:7b          # ~8-12 ГБ; или llama3.1:8b
+# LOCAL_MODEL=qwen2.5:3b        # ~2-3 ГБ для совсем слабого железа (см. ниже)
 ```
 ```bash
 docker compose -f docker-compose.lab.yml exec ollama ollama pull qwen2.5:7b
 docker compose -f docker-compose.lab.yml restart pentest sanitizer vulnllm ragapp
 ```
 И оркестратор, и ИИ-мишени возьмут новую модель — переключение одной строкой.
+
+`qwen2.5:3b` — самый лёгкий рабочий вариант: ИИ-мишени (`vulnllm`, `ragapp`)
+на нём тренируются нормально (им надо просто отвечать и «вестись» на инъекции),
+но оркестратору строгий JSON для `/plan` и разбора вывода даётся хуже — если в
+панели/CLI вместо структуры мелькает «сырой» ответ (`_parse_error`), поднимите
+до `qwen2.5:7b`. Ниже 3b (напр. `qwen2.5:1.5b`) для оркестратора не рекомендуется.
 
 **Ollama уже развёрнут на другом сервере (переключение флагом):**
 Локальный движок вынесен в docker-профиль `local-model`, поэтому включается/
@@ -318,6 +343,7 @@ Ollama (локальный или внешний). Без него эти две
 | POST | /v1/run | Прямой запуск инструмента (вкладка Arsenal) |
 | GET | /v1/tools | Список инструментов allowlist |
 | GET | /v1/scope | Активный scope |
+| PUT | /v1/scope | Ручное изменение scope в рантайме (**только admin**) |
 | GET | /v1/lab/targets | Мишени + статус + учебные цели |
 | GET | /v1/audit?limit=N | Последние записи аудита |
 | GET | /v1/report/{sid} | Отчёт по сессии (JSON) |

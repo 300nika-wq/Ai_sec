@@ -257,6 +257,25 @@
 
     <div id="scopeBox" class="card" style="margin-top:14px"></div>
 
+    <details id="scopeEditor" class="card" style="margin-top:10px">
+      <summary style="cursor:pointer;color:var(--accent);font-weight:600">Изменить scope вручную (нужен admin-токен)</summary>
+      <div class="field" style="margin-top:12px"><label>Потолок интенсивности</label>
+        <select id="scMaxInt">
+          <option value="passive">passive</option>
+          <option value="safe-active">safe-active</option>
+          <option value="full">full</option>
+        </select>
+      </div>
+      <div class="field"><label>Разрешённые хосты (через запятую или с новой строки)</label>
+        <textarea id="scHosts" rows="3" placeholder="juiceshop, dvwa, vulnllm …"></textarea></div>
+      <div class="field"><label>Исключения (не трогать никогда)</label>
+        <textarea id="scExcl" rows="2" placeholder="пусто или список хостов"></textarea></div>
+      <div class="btn-row">
+        <button onclick="saveScope()">Сохранить scope</button>
+        <span class="kv">Изменения в памяти; перезапуск pentest вернёт scope к engagement.lab.yml.</span>
+      </div>
+    </details>
+
     <h3 style="margin:18px 0 0;font-size:13.5px">Тренировочные мишени</h3>
     <div id="targetsBox"></div>
 
@@ -521,6 +540,28 @@ function renderScope(s){
       <span class="badge sev-medium">intensity: ${esc(s.max_intensity)}</span></h3>
     <div class="kv" style="margin-top:6px"><b>Разрешено:</b> ${hosts}</div>
     <div class="kv" style="margin-top:4px"><b>Исключено:</b> ${excl}</div>`;
+  // Заполняем редактор текущими значениями, но НЕ затираем, пока оператор правит
+  // (панель авто-обновляется каждые 5с — иначе поля сбрасывались бы на лету).
+  const ed=$("scopeEditor");
+  if(ed && !ed.open){
+    $("scMaxInt").value=s.max_intensity||"safe-active";
+    $("scHosts").value=(s.allowed_hosts||[]).join(", ");
+    $("scExcl").value=(s.excluded||[]).join(", ");
+  }
+}
+
+async function saveScope(){
+  const st=$("labStatus"); st.className="status busy"; st.textContent="Сохраняю scope…";
+  const parse = v => v.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean);
+  try{
+    const body={ max_intensity:$("scMaxInt").value,
+                 allowed_hosts:parse($("scHosts").value),
+                 excluded:parse($("scExcl").value) };
+    const r=await api(cfg.pent||$("pentUrl").value, "/v1/scope", {method:"PUT", body:JSON.stringify(body)});
+    st.className="status"; st.textContent="Scope обновлён (в памяти). "+(r.note||"");
+    $("scopeEditor").open=false;
+    loadLab();
+  }catch(e){ st.className="status err"; st.textContent=e.message; }
 }
 
 function renderTargets(list){
