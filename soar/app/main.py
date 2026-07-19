@@ -35,6 +35,9 @@ app.add_middleware(
 )
 
 SANITIZER_URL = os.environ.get("SANITIZER_URL", "http://sanitizer:8000")
+# Маршрут разбора инцидента по умолчанию: local | external (внешний ИИ через
+# санитайзер). external сработает только при ALLOW_EXTERNAL=true в санитайзере.
+DEFAULT_ROUTE = os.environ.get("DEFAULT_ROUTE", "local").lower()
 
 SYSTEM_PROMPT = """Ты — старший аналитик SOC. По входному инциденту дай рекомендацию
 СТРОГО в JSON со схемой:
@@ -93,12 +96,13 @@ async def advise(inc: Incident, role: str = Depends(authenticate)):
     audit("incident_received", role, inc.incident_id, "processing",
           source=inc.source, title=inc.title)
 
-    # Анализ на локальной модели — данные не уходят наружу.
+    # Разбор инцидента: по умолчанию локально; при DEFAULT_ROUTE=external —
+    # через санитайзер во внешний ИИ (данные обезличиваются перед отправкой).
     prompt = f"ИНЦИДЕНТ [{inc.source}] {inc.title}\n\nДАННЫЕ:\n{inc.raw}"
-    resp = await _ask(prompt, SYSTEM_PROMPT, "local", inc.incident_id)
+    resp = await _ask(prompt, SYSTEM_PROMPT, DEFAULT_ROUTE, inc.incident_id)
     advice = _parse_json(resp["text"])
-    route = "local"
-    masked = 0
+    route = resp.get("route", DEFAULT_ROUTE)
+    masked = resp.get("masked_terms", 0)
 
     # Опциональное обогащение внешним ИИ — ТОЛЬКО обезличенно.
     # Санитайзер сам замаскирует IP/ПДн; сюда прилетит уже размаскированный ответ.

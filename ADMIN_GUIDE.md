@@ -284,6 +284,48 @@ Ollama (локальный или внешний). Без него эти две
 
 ---
 
+## 11a. Внешний ИИ по умолчанию (Алиса / YandexGPT и др.)
+
+Разбор вывода и оркестрацию (планирование шагов в pentest, разбор инцидента в
+soar) можно по умолчанию направить во **внешний ИИ** — но строго **через
+санитайзер**: перед отправкой наружу маскируются IP/хосты/e-mail/секреты, а
+ответ размаскировывается обратно. Где что прописывать — только в `.env`
+(compose пробрасывает эти переменные в `sanitizer`, `pentest`, `soar`):
+
+```ini
+ALLOW_EXTERNAL=true                 # снять жёсткий рубильник наружу
+DEFAULT_ROUTE=external              # по умолчанию разбор/оркестрация — внешним ИИ
+EXTERNAL_PROVIDER=yandex            # anthropic | yandex | openai
+EXTERNAL_URL=https://llm.api.cloud.yandex.net/foundationModels/v1/completion
+EXTERNAL_MODEL=yandexgpt/latest     # или yandexgpt-lite/latest, либо gpt://<folder>/<model>
+EXTERNAL_API_KEY=<Api-Key сервисного аккаунта Yandex Cloud>
+YANDEX_FOLDER_ID=<b1g... id каталога>
+```
+Затем: `docker compose -f docker-compose.lab.yml up -d` (или `restart sanitizer
+pentest`). Проверка: `curl :8020/healthz` и `docker compose ... exec sanitizer` →
+у санитайзера `GET /healthz` покажет `provider` и `external_model`.
+
+- **Где взять доступ к «Алисе».** «Алиса» как API — это **YandexGPT** в Yandex
+  Cloud (Foundation Models). Нужны: каталог (`folder id`, вид `b1g…`), сервисный
+  аккаунт с ролью `ai.languageModels.user` и его **Api-Key**. `modelUri`
+  собирается автоматически из `YANDEX_FOLDER_ID` + `EXTERNAL_MODEL`, либо задайте
+  целиком (`EXTERNAL_MODEL=gpt://<folder>/yandexgpt/latest`).
+- **Провайдеры.** `EXTERNAL_PROVIDER=anthropic` (Claude), `yandex` (Алиса),
+  `openai` (любой OpenAI-совместимый эндпоинт, в т.ч. RU-прокси). Формат запроса
+  под каждый — внутри санитайзера, менять код не нужно.
+- **Точечно, не по умолчанию.** Можно оставить `DEFAULT_ROUTE=local`, а внешний
+  ИИ включать галочкой «разбирать вывод внешним ИИ» в панели/CLI per-request.
+- **Что уходит наружу.** Только обезличенный текст. НО: PII-детект Presidio
+  настроен на английский — русские ФИО/телефоны он ловит хуже; сетевые артефакты
+  и секреты маскируются регексами независимо от языка. Это снижение риска, а не
+  гарантия. Используйте только тариф с Zero-Data-Retention и opt-out обучения.
+- **ИИ-мишени — отдельно.** `vulnllm`/`ragapp` на внешний ИИ НЕ переключаются:
+  они эмулируют Ollama-клиента и ходят в `OLLAMA_URL`. Если оркестрацию вынесли
+  на Алису и локальный Ollama больше не нужен для анализа — он всё ещё нужен этим
+  двум мишеням (иначе они не работают; остальные 8 — работают без модели).
+
+---
+
 ## 12. Обслуживание
 
 - **Обновление образов мишеней:**
