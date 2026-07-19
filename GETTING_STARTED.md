@@ -198,6 +198,7 @@ docker compose -f docker-compose.webui.yml down
 | 429 | Rate limit, подождите минуту |
 | Модель долго / OOM | Мало памяти → `LOCAL_MODEL=qwen2.5:3b` + `ollama pull qwen2.5:3b` |
 | Мишень «down» | Контейнер ещё стартует (Metasploitable/WebGoat дольше) |
+| `image ... not found` / `429` при pull | Временный сбой Docker Hub или лимит анонимных пулов. Повторить `docker compose -f docker-compose.lab.yml pull <сервис>`; при повторе — `docker login`, затем `up -d`. Образы реальны, тег менять не нужно |
 | llm_probe/rag_query «пусто» | Мишень грузит модель при первом запросе — повторите |
 | Панель без нового раздела | Пересоздайте webui (`up -d --force-recreate`) + Ctrl+Shift+R |
 
